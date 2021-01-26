@@ -1,1 +1,2 @@
 horace_euphonic_interface/_version.py export-subst
+euphonic_horace/_version.py export-subst

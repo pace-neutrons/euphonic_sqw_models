@@ -1,2 +1,4 @@
 *.asv
 doc/source/test_html
+*.pyc
+__pycache__
