@@ -4,7 +4,7 @@ import os
 import re
 import requests
 import subprocess
-from horace_euphonic_interface import __version__
+from euphonic_horace import __version__
 
 
 def main():
@@ -46,24 +46,9 @@ def release_github(test=True):
         print(payload)
     else:
         response = requests.post(
-            'https://api.github.com/repos/pace-neutrons/horace-euphonic-interface/releases',
+            'https://api.github.com/repos/pace-neutrons/euphonic_horace/releases',
             data=json.dumps(payload),
             headers={"Authorization": "token " + os.environ["GITHUB_TOKEN"]})
-        print(response.text)
-
-    # Create a Matlab toolbox and upload it
-    pull_light_wrapper()
-    create_mltbx()
-    if test:
-        print("Would upload mltx to github.")
-    else:
-        upload_url = response.json().get('upload_url')
-        response = requests.post(
-            upload_url,
-            data = open('mltbx/horace_euphonic_interface.mltbx', 'rb'),
-            headers = {"Content-Type": 'application/octet-stream', 
-                       "Authorization": "token " + os.environ["GITHUB_TOKEN"]},
-        )
         print(response.text)
 
 
@@ -90,32 +75,6 @@ def get_parser():
         action='store_true',
         help='Actually send/upload')
     return parser
-
-
-def pull_light_wrapper():
-    import os
-    # Checks if the light_python_wrapper submodule has been fetched
-    # If not, get it from github, otherwise copy submodule file to this folder.
-    if not os.path.isfile('light_python_wrapper/+light_python_wrapper/light_python_wrapper.m'):
-        import urllib.request
-        import zipfile
-        import io
-        gh_zip = 'https://github.com/pace-neutrons/light_python_wrapper/archive/master.zip'
-        zipdata = urllib.request.urlopen(gh_zip).read()
-        zipfile.ZipFile(io.BytesIO(zipdata)).extractall('.')
-
-
-def create_mltbx():
-    import shutil
-    import subprocess
-    if os.path.isfile('light_python_wrapper-master'):
-        shutil.copytree('light_python_wrapper-master/+light_python_wrapper', 'mltbx/+light_python_wrapper')
-    else:
-        shutil.copytree('light_python_wrapper/+light_python_wrapper', 'mltbx/+light_python_wrapper')
-    shutil.copytree('+euphonic', 'mltbx/+euphonic')
-    subprocess.run(['matlab', '-batch', 
-                    'matlab.addons.toolbox.packageToolbox("horace_euphonic_interface.prj", "horace_euphonic_interface.mltbx")'],
-                   cwd='mltbx')
 
 
 if __name__ == '__main__':

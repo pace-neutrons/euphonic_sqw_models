@@ -207,7 +207,7 @@ class CoherentCrystal(object):
 
     @conversion_mat.setter
     def conversion_mat(self, val):
-        if val is None or val == 'None':
+        if val is None or (isinstance(val, str) and val.startswith('None')):
             self._conversion_mat = None
         else:
             val = np.array(val)
