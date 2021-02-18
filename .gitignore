@@ -2,3 +2,5 @@
 doc/source/test_html
 *.pyc
 __pycache__
+coverage.xml
+report.xml

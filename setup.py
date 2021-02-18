@@ -4,7 +4,7 @@ try:
 except ImportError:
     from distutils.core import setup
 
-euphonic_ver = '0.3.2'
+euphonic_ver = '0.4.0'
 
 setup(name='euphonic_horace',
       version=versioneer.get_version(),
