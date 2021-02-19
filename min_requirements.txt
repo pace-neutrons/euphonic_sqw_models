@@ -1,0 +1,3 @@
+euphonic[phonopy_reader]>=0.4.0
+pytest
+coverage

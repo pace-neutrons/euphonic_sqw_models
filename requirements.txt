@@ -1,3 +1,0 @@
-euphonic[phonopy_reader]
-pytest
-coverage
