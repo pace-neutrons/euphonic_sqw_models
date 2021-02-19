@@ -55,7 +55,7 @@ class CoherentCrystal(object):
     defaults = {'debye_waller': None, 'debye_waller_grid': None, 'temperature': 0.0 * ureg('K'), 'bose': True,
                 'negative_e': False, 'conversion_mat': None, 'chunk': 5000, 'lim': np.inf, 'scattering_lengths': 'Sears1992',
                 'weights': None, 'asr': None, 'dipole': True, 'eta_scale': 1.0, 'splitting': True, 'insert_gamma': False, 
-                'reduce_qpts': True, 'use_c': False, 'n_threads': 1, 'fall_back_on_python': True}
+                'reduce_qpts': True, 'use_c': False, 'n_threads': 1, 'fall_back_on_python': True, 'verbose': True}
 
     def __init__(self, force_constants, **kwargs):
         for key, val in self.defaults.items():
@@ -112,8 +112,8 @@ class CoherentCrystal(object):
             for i in range(int(np.ceil(lqh / self.chunk))):
                 qi = i * self.chunk
                 qf = min((i+1) * self.chunk, lqh)
-                n = qf - qi + 1
-                print(f'Using Euphonic to interpolate for q-points {qi}:{qf} out of {lqh}')
+                if self.verbose:
+                    print(f'Using Euphonic to interpolate for q-points {qi}:{qf} out of {lqh}')
                 qpts = np.vstack((np.squeeze(qh[qi:qf]), np.squeeze(qk[qi:qf]), np.squeeze(ql[qi:qf]))).T
                 if self.conversion_mat is not None:
                     qpts = np.matmul(qpts, self.conversion_mat)
