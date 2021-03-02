@@ -1,6 +1,6 @@
-===============
-euphonic_horace
-===============
+===================
+euphonic_sqw_models
+===================
 
 A driver for the `Horace <https://github.com/pace-neutrons/Horace.git>`_
 inelastic neutron scattering (INS) data analysis package to generate model INS spectra

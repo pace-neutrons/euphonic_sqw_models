@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import euphonic
-import euphonic_horace
+import euphonic_sqw_models
 import os
 import scipy.io
 
@@ -79,7 +79,7 @@ def sum_degenerate_modes(w, sf):
 
 
 @pytest.mark.parametrize("par_dict", parameter_generator())
-def test_euphonic_horace(par_dict):
+def test_euphonic_sqw_models(par_dict):
     material_name, material_constructor, material_pars = tuple(par_dict.pop('material'))
     fc = material_constructor(**material_pars)
     temperature = par_dict['temperature']
@@ -101,7 +101,7 @@ def test_euphonic_horace(par_dict):
         for remove_if_none in list(par_dict.keys()):
             if remove_if_none in par_dict and par_dict[remove_if_none] is None:
                 par_dict.pop(remove_if_none)
-        coherent_sqw = euphonic_horace.CoherentCrystal(fc, **par_dict)
+        coherent_sqw = euphonic_sqw_models.CoherentCrystal(fc, **par_dict)
         w, sf = coherent_sqw.horace_disp(qpts[:,0], qpts[:,1], qpts[:,2], par[1])
         w = np.array(w).T
         sf = np.array(sf).T

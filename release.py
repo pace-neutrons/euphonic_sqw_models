@@ -4,7 +4,7 @@ import os
 import re
 import requests
 import subprocess
-from euphonic_horace import __version__
+from euphonic_sqw_models import __version__
 
 
 def main():
@@ -46,7 +46,7 @@ def release_github(test=True):
         print(payload)
     else:
         response = requests.post(
-            'https://api.github.com/repos/pace-neutrons/euphonic_horace/releases',
+            'https://api.github.com/repos/pace-neutrons/euphonic_sqw_models/releases',
             data=json.dumps(payload),
             headers={"Authorization": "token " + os.environ["GITHUB_TOKEN"]})
         print(response.text)

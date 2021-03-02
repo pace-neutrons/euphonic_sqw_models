@@ -1,2 +1,2 @@
 include versioneer.py
-include euphonic_horace/_version.py
+include euphonic_sqw_models/_version.py

@@ -13,13 +13,13 @@ def get_euphonic_version():
     return verstr[0].split('=')[1].strip()
 
 
-setup(name='euphonic_horace',
+setup(name='euphonic_sqw_models',
       version=versioneer.get_version(),
       cmdclass=versioneer.get_cmdclass(),
       description='Phonon inelastic neutron spectra calculation using Horace and Euphonic',
       author='Rebecca Fair',
       author_email='rebecca.fair@stfc.ac.uk',
-      url='https://github.com/pace-neutrons/euphonic_horace',
-      packages=['euphonic_horace'],
+      url='https://github.com/pace-neutrons/euphonic_sqw_models',
+      packages=['euphonic_sqw_models'],
       install_requires=['euphonic>=' + get_euphonic_version()],
      )
