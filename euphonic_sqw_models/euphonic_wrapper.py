@@ -45,7 +45,6 @@ class CoherentCrystal(object):
     reduce_qpts : boolean, optional
     use_c : boolean, optional
     n_threads : int, optional
-    fall_back_on_python : boolean, optional
         These are parameters used in the `calculate_qpoint_phonon_modes` method of ForceConstants
         Type `help(fc.calculate_qpoint_phonon_modes)` where fc is the ForceConstants object you created.
     """
@@ -55,7 +54,7 @@ class CoherentCrystal(object):
     defaults = {'debye_waller': None, 'debye_waller_grid': None, 'temperature': 0.0 * ureg('K'), 'bose': True,
                 'negative_e': False, 'conversion_mat': None, 'chunk': 5000, 'lim': np.inf, 'scattering_lengths': 'Sears1992',
                 'weights': None, 'asr': None, 'dipole': True, 'eta_scale': 1.0, 'splitting': True, 'insert_gamma': False, 
-                'reduce_qpts': True, 'use_c': False, 'n_threads': 1, 'fall_back_on_python': True, 'verbose': True}
+                'reduce_qpts': True, 'use_c': None, 'n_threads': None, 'verbose': True}
 
     def __init__(self, force_constants, **kwargs):
         for key, val in self.defaults.items():
@@ -145,7 +144,7 @@ class CoherentCrystal(object):
         return self.force_constants.calculate_qpoint_phonon_modes(qpts,
             weights=self.weights, asr=self.asr, dipole=self.dipole, eta_scale=self.eta_scale,
             splitting=self.splitting, insert_gamma=self.insert_gamma, reduce_qpts=self.reduce_qpts,
-            use_c=self.use_c, n_threads=self.n_threads, fall_back_on_python=self.fall_back_on_python)
+            use_c=self.use_c, n_threads=self.n_threads)
 
     def _calculate_debye_waller(self):
         if self.temperature <= 0.0:
