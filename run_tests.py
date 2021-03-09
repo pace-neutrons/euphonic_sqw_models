@@ -1,6 +1,7 @@
 import pytest
 import coverage
 import argparse
+import sys
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -28,3 +29,5 @@ if __name__ == "__main__":
     if args_parsed.coverage:
         cov.stop()
         cov.xml_report(outfile='coverage.xml')
+
+    sys.exit(test_output)
