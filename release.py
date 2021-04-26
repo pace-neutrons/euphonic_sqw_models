@@ -70,7 +70,7 @@ def release_github(test=True):
 
     payload = {
         "tag_name": changelog_ver,
-        "target_commitish": "master",
+        "target_commitish": "main",
         "name": changelog_ver,
         "body": desc,
         "draft": False,
