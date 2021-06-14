@@ -1,7 +1,13 @@
 import numpy as np
 import os
+import warnings
 from euphonic import Crystal, ForceConstants, QpointPhononModes, DebyeWaller, ureg
 from euphonic.util import mp_grid
+
+# Allow Euphonic's deprecation warnings to be raised if deprecated
+# arguments are passed through this module
+warnings.filterwarnings('default', category=DeprecationWarning,
+                        module=__name__)
 
 class CoherentCrystal(object):
     """
