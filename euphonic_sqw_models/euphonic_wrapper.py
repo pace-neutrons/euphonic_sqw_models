@@ -41,7 +41,6 @@ class CoherentCrystal(object):
     dipole : boolean, optional
     dipole_parameter : float, optional
     eta_scale : float, optional
-
         .. deprecated:: 0.4.0
         Deprecated since euphonic_sqw_models 0.4.0 and Euphonic 0.6.0
     splitting : boolean, optional
@@ -69,6 +68,10 @@ class CoherentCrystal(object):
     def __init__(self, force_constants, **kwargs):
         for key, val in self.defaults.items():
             setattr(self, key, kwargs.pop(key, self.defaults[key]))
+        if kwargs:
+            raise ValueError(
+                f'Unrecognised keyword arguments {list(kwargs.keys())}, '
+                f'accepted arguments are {list(self.defaults.keys())}')
         self.force_constants = force_constants
 
     def _calculate_sf(self, qpts):
