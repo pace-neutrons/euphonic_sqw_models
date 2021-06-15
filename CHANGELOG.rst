@@ -1,6 +1,18 @@
 `Unreleased <https://github.com/pace-neutrons/euphonic_sqw_models/compare/v0.3.0...HEAD>`_
 ----------
 
+- Dependency changes:
+
+  - Euphonic version dependency increased from >= 0.5.0 to >= 0.6.0
+
+- Other changes:
+
+  - The ``eta_scale`` keyword argument to ``CoherentCrystal`` has been deprecated,
+    ``dipole_parameter`` should be used instead
+  - A ValueError will now be raised if an unrecognised keyword argument is passed
+    to ``CoherentCrystal``
+
+
 `v0.3.0 <https://github.com/pace-neutrons/euphonic_sqw_models/compare/v0.2...v0.3.0>`_
 ------
 
