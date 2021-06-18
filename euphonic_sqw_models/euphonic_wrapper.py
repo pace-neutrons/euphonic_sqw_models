@@ -1,7 +1,13 @@
 import numpy as np
 import os
+import warnings
 from euphonic import Crystal, ForceConstants, QpointPhononModes, DebyeWaller, ureg
 from euphonic.util import mp_grid
+
+# Allow Euphonic's deprecation warnings to be raised if deprecated
+# arguments are passed through this module
+warnings.filterwarnings('default', category=DeprecationWarning,
+                        module=__name__)
 
 class CoherentCrystal(object):
     """
@@ -39,7 +45,10 @@ class CoherentCrystal(object):
         a dictionary with elements as keys or a string denoting a database (internal or from file)
     asr : {'realspace', 'reciprocal'}, optional
     dipole : boolean, optional
+    dipole_parameter : float, optional
     eta_scale : float, optional
+        .. deprecated:: 0.4.0
+        Deprecated since euphonic_sqw_models 0.4.0 and Euphonic 0.6.0
     splitting : boolean, optional
     insert_gamma : boolean, optional
     reduce_qpts : boolean, optional
@@ -51,14 +60,34 @@ class CoherentCrystal(object):
     # This a wrapper around the Euphonic ForceConstants and QpointPhononModes classes to make it easier to access from Matlab
     # It is meant to be used with a Matlab python_wrapper class and implements a horace_sqw function for use with Horace
 
-    defaults = {'debye_waller': None, 'debye_waller_grid': None, 'temperature': 0.0 * ureg('K'), 'bose': True,
-                'negative_e': False, 'conversion_mat': None, 'chunk': 5000, 'lim': np.inf, 'scattering_lengths': 'Sears1992',
-                'weights': None, 'asr': None, 'dipole': True, 'eta_scale': 1.0, 'splitting': True, 'insert_gamma': False, 
-                'reduce_qpts': True, 'use_c': None, 'n_threads': None, 'verbose': True}
+    defaults = {'debye_waller': None,
+                'debye_waller_grid': None,
+                'temperature': 0.0 * ureg('K'),
+                'bose': True,
+                'negative_e': False,
+                'conversion_mat': None,
+                'chunk': 5000,
+                'lim': np.inf,
+                'scattering_lengths': 'Sears1992',
+                'weights': None,
+                'asr': None,
+                'dipole': True,
+                'dipole_parameter': 1.0 ,
+                'eta_scale': 1.0,
+                'splitting': True,
+                'insert_gamma': False,
+                'reduce_qpts': True,
+                'use_c': None,
+                'n_threads': None,
+                'verbose': True}
 
     def __init__(self, force_constants, **kwargs):
         for key, val in self.defaults.items():
             setattr(self, key, kwargs.pop(key, self.defaults[key]))
+        if kwargs:
+            raise ValueError(
+                f'Unrecognised keyword arguments {list(kwargs.keys())}, '
+                f'accepted arguments are {list(self.defaults.keys())}')
         self.force_constants = force_constants
 
     def _calculate_sf(self, qpts):
@@ -142,9 +171,9 @@ class CoherentCrystal(object):
         if self.force_constants is None:
             raise RuntimeError('Force constants model not set')
         return self.force_constants.calculate_qpoint_phonon_modes(qpts,
-            weights=self.weights, asr=self.asr, dipole=self.dipole, eta_scale=self.eta_scale,
-            splitting=self.splitting, insert_gamma=self.insert_gamma, reduce_qpts=self.reduce_qpts,
-            use_c=self.use_c, n_threads=self.n_threads)
+            weights=self.weights, asr=self.asr, dipole=self.dipole, dipole_parameter=self.dipole_parameter,
+            eta_scale=self.eta_scale, splitting=self.splitting, insert_gamma=self.insert_gamma,
+            reduce_qpts=self.reduce_qpts, use_c=self.use_c, n_threads=self.n_threads)
 
     def _calculate_debye_waller(self):
         if self.temperature <= 0.0:

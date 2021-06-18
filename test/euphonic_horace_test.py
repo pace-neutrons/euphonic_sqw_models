@@ -18,7 +18,7 @@ negative_e = [None, True]
 conversion_mat = [None, (1./2)*np.array([[-1, 1, 1], [1, -1, 1], [1, 1, -1]])]
 lim = [None, 1e-9]
 
-run_pars = [{'use_c': False, 'n_threads': 1, 'chunk': 5},
+run_pars = [{'use_c': False, 'n_threads': 1, 'chunk': 5, 'dipole_parameter': 0.75},
             {'use_c': True, 'n_threads': 1, 'chunk': 0},
             {'use_c': True, 'n_threads': 2, 'chunk': 0}]
 
