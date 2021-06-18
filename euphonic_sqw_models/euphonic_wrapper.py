@@ -60,16 +60,26 @@ class CoherentCrystal(object):
     # This a wrapper around the Euphonic ForceConstants and QpointPhononModes classes to make it easier to access from Matlab
     # It is meant to be used with a Matlab python_wrapper class and implements a horace_sqw function for use with Horace
 
-    defaults = {'debye_waller': None, 'debye_waller_grid': None,
-                'temperature': 0.0 * ureg('K'), 'bose': True,
-                'negative_e': False, 'conversion_mat': None,
-                'chunk': 5000, 'lim': np.inf,
-                'scattering_lengths': 'Sears1992', 'weights': None,
-                'asr': None, 'dipole': True,
-                'dipole_parameter': 1.0 ,'eta_scale': 1.0,
-                'splitting': True, 'insert_gamma': False,
-                'reduce_qpts': True, 'use_c': None,
-                'n_threads': None, 'verbose': True}
+    defaults = {'debye_waller': None,
+                'debye_waller_grid': None,
+                'temperature': 0.0 * ureg('K'),
+                'bose': True,
+                'negative_e': False,
+                'conversion_mat': None,
+                'chunk': 5000,
+                'lim': np.inf,
+                'scattering_lengths': 'Sears1992',
+                'weights': None,
+                'asr': None,
+                'dipole': True,
+                'dipole_parameter': 1.0 ,
+                'eta_scale': 1.0,
+                'splitting': True,
+                'insert_gamma': False,
+                'reduce_qpts': True,
+                'use_c': None,
+                'n_threads': None,
+                'verbose': True}
 
     def __init__(self, force_constants, **kwargs):
         for key, val in self.defaults.items():
