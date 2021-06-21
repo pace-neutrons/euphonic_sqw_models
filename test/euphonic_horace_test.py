@@ -58,7 +58,14 @@ def get_expected_output_filename(material_name, pars, opts):
     if opts['conversion_mat'] is not None:
         fname += '_conv_mat_det' + str(np.linalg.det(opts['conversion_mat']))
     if opts['lim'] is not None:
-        fname += '_lim' + str(opts['lim'])
+        # Account for different str conversion of positive exponent
+        # sci notation - e.g. in Matlab string(1e2) = "100" but in
+        # Python str(1e2) = "100.0" unless explicitly cast to int
+        if opts['lim']%1 == 0:
+            strlim = str(int(opts['lim']))
+        else:
+            strlim = str(opts['lim'])
+        fname += '_lim' + strlim
     fname = fname.replace('.', 'p').replace('-', 'm')
     fname += '.mat'
     return get_abspath(fname, 'expected_output');
