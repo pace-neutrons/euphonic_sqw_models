@@ -23,7 +23,7 @@ if __name__ == "__main__":
     if args_parsed.coverage:
         cov = coverage.Coverage(source=['euphonic_sqw_models'], omit=['*/_version.py'])
         cov.start()
-
+    pytest_options.insert(0, '-v')
     test_output = pytest.main(pytest_options)
     
     if args_parsed.coverage:
