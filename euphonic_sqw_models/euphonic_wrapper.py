@@ -16,10 +16,10 @@ class CoherentCrystal(object):
 
     Methods
     -------
-    w, sf = horace_disp(qh, qk, ql, pars=[])
+    w, sf = horace_disp(qh, qk, ql, pars=[1.0, 1.0])
         Calculates the phonon dispersion surfaces `w` and structure factor `sf` at the specified
-        (qh, qk, ql) points. The optional parameter `pars=[scale_factor]` is just a single scale
-        factor to multiply the calculated structure factor by.
+        (qh, qk, ql) points. The optional parameters `pars=[intensity_scale, frequency scale]`
+        is are the intensity and frequency scaling factors
 
     Attributes
     ----------
@@ -110,7 +110,7 @@ class CoherentCrystal(object):
             sf = np.hstack((sf, neg_sf))
         return w, sf
         
-    def horace_disp(self, qh, qk, ql, pars=[], *args, **kwargs):
+    def horace_disp(self, qh, qk, ql, pars=[1.0, 1.0], *args, **kwargs):
         """
         Calculates the phonon dispersion surface for input qh, qk, and ql vectors for use with Horace
  
@@ -118,9 +118,13 @@ class CoherentCrystal(object):
         ----------
         qh, qk, ql : (n_pts,) float ndarray
             The q-points to calculate at as separate vectors
-        pars : float ndarray
-            Parameters for the calculation (currently just the scale factor)
-            pars[0] = scale factor to multiply the intensity by
+        pars : Sequence[float, float]
+            Parameters for the calculation:
+                pars[0] = intensity scaling - factor to multiply the
+                          intensity by
+                pars[1] = frequency scaling - factor to multiply the phonon
+                          frequencies by, as DFT can often overestimate
+                          frequencies
         args: tuple
             Arguments passed directly to the convolution function
         kwargs : dict
@@ -134,7 +138,8 @@ class CoherentCrystal(object):
             The dynamical structure corresponding to phonon energies in w as a tuple of numpy float vectors
         """
 
-        scale = (pars[0] if len(pars) > 0 else 1.) if hasattr(pars, '__len__') else pars
+        intensity_scale = pars[0]
+        frequency_scale =  pars[1]
         if self.chunk > 0:
             lqh = len(qh)
             for i in range(int(np.ceil(lqh / self.chunk))):
@@ -157,8 +162,10 @@ class CoherentCrystal(object):
             if self.conversion_mat is not None:
                 qpts = np.matmul(qpts, self.conversion_mat)
             w, sf = self._calculate_sf(qpts)
-        if scale != 1.:
-            sf *= scale
+        if frequency_scale != 1.:
+            w *= frequency_scale
+        if intensity_scale != 1.:
+            sf *= intensity_scale
         sf = np.minimum(sf, self.lim)
         # Splits into different dispersion surfaces (python tuple == matlab cell)
         # But the data must be contiguous in memory so we need to do a real tranpose (.T just changes strides)
