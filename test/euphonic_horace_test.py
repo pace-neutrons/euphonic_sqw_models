@@ -36,10 +36,13 @@ qpts = [[0.0,  0.0,  0.0],
         [0.0, -0.5,  0.0],
         [0.0,  0.0, -0.5],
         [1.0, -1.0, -1.0]]
+qpts = np.array(qpts)
 scattering_lengths = {'La': 8.24, 'Zr': 7.16, 'O': 5.803,
                       'Si': 4.1491, 'Na': 3.63, 'Cl': 9.577}
-scale = 1.0
-qpts = np.array(qpts)
+iscale = 1.0
+freq_scale = 1.0
+pars = [iscale, freq_scale]
+
 
 def parameter_generator():
     for tt in temp:
@@ -57,8 +60,8 @@ def parameter_generator():
                                        'conversion_mat': cmat,
                                        'lim': lm}
 
-def get_expected_output_filename(material_name, pars, opts):
-    fname = f"{material_name}_T{pars[0]}"
+def get_expected_output_filename(material_name, opts):
+    fname = f"{material_name}_T{opts['temperature']}"
     if opts.get('debye_waller_grid', None) is not None:
         fname += "_dw" + "".join([str(v) for v in opts['debye_waller_grid']])
     if opts.get('bose', None) is not None:
@@ -99,7 +102,7 @@ def calculate_w_sf(material_pars, material_constructor, par_dict):
     par_dict['asr'] = 'reciprocal'
     par_dict['scattering_lengths'] = scattering_lengths
     coherent_sqw = euphonic_sqw_models.CoherentCrystal(fc, **par_dict)
-    w, sf = coherent_sqw.horace_disp(qpts[:,0], qpts[:,1], qpts[:,2], scale)
+    w, sf = coherent_sqw.horace_disp(qpts[:,0], qpts[:,1], qpts[:,2], pars)
     w = np.array(w).T
     sf = np.array(sf).T
     # Ignore acoustic structure factors by setting to zero - their
@@ -130,7 +133,7 @@ def test_euphonic_sqw_models(par_dict):
         par_dict.pop('material'))
     expected_w, expected_sf = get_expected_w_sf(
         get_expected_output_filename(
-            material_name, [par_dict['temperature'], scale], par_dict))
+            material_name, par_dict))
 
     for run_par in run_pars:
         par_dict.update(run_par)
@@ -160,7 +163,7 @@ def test_sf_unit_change(par_dict):
     material_name, material_constructor, material_pars = tuple(
         par_dict.pop('material'))
     fname = get_expected_output_filename(
-            material_name, [par_dict['temperature'], scale], par_dict)
+            material_name, par_dict)
     expected_w, expected_sf = get_expected_w_sf(os.path.join(
         os.path.dirname(fname),
         f'old_units_{os.path.basename(fname)}'))
