@@ -98,7 +98,8 @@ def sum_degenerate_modes(w, sf):
     return summed_sf
 
 
-def calculate_w_sf(material_opts, material_constructor, opt_dict):
+def calculate_w_sf(material_opts, material_constructor, opt_dict,
+                   pars=[1.0, 1.0], sum_sf=True):
     fc = material_constructor(**material_opts)
     opt_dict['asr'] = 'reciprocal'
     opt_dict['scattering_lengths'] = scattering_lengths
@@ -112,12 +113,12 @@ def calculate_w_sf(material_opts, material_constructor, opt_dict):
     sf[:,:3] = 0.
     if 'negative_e' in opt_dict and opt_dict['negative_e']:
         sf[:,n:(n+3)] = 0
-    # Need to sum over degenerate modes to compare structure factors
-    sf_summed = sum_degenerate_modes(w, sf)
-    return w, sf_summed
+    if sum_sf:
+        sf = sum_degenerate_modes(w, sf)
+    return w, sf
 
 
-def get_expected_w_sf(fname):
+def get_expected_w_sf(fname, sum_sf=True):
     ref_dat = scipy.io.loadmat(fname)
     expected_w = np.concatenate(ref_dat['expected_w'][0], axis=1)
     expected_sf = np.concatenate(ref_dat['expected_sf'][0], axis=1)
@@ -126,9 +127,9 @@ def get_expected_w_sf(fname):
     if 'negative_e' in fname:
         n = int(np.shape(expected_sf)[1] / 2)
         expected_sf[:,n:(n+3)] = 0
-    expected_sf_summed = sum_degenerate_modes(expected_w, expected_sf)
-    return expected_w, expected_sf_summed
-
+    if sum_sf:
+        expected_sf = sum_degenerate_modes(expected_w, expected_sf)
+    return expected_w, expected_sf
 
 @pytest.mark.parametrize("material", materials)
 @pytest.mark.parametrize("opt_dict", get_test_opts())
@@ -149,6 +150,35 @@ def test_euphonic_sqw_models(material, opt_dict, run_opts):
     w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict)
     npt.assert_allclose(w, expected_w, rtol=1e-5, atol=1e-2)
     npt.assert_allclose(sf, expected_sf, rtol=1e-2, atol=1e-2)
+
+
+@pytest.mark.parametrize("material", materials)
+@pytest.mark.parametrize("opt_dict", [{
+    'temperature': 300,
+    'debye_waller_grid': [6, 6, 6],
+    'negative_e': True,
+    'conversion_mat': (1./2)*np.array([[-1, 1, 1],
+                                       [1, -1, 1],
+                                       [1, 1, -1]])}])
+@pytest.mark.parametrize("iscale, freqscale", [(1.0, 1.3),
+                                               (1e-4, 1.0),
+                                               (1.5e3, 0.4)])
+def test_euphonic_sqw_models_pars(material, opt_dict, iscale, freqscale):
+    material_name, material_constructor, material_opts = material
+    expected_w, expected_sf = get_expected_w_sf(
+        get_expected_output_filename(
+            material_name, opt_dict), sum_sf=False)
+    w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict,
+                           pars=[iscale, freqscale], sum_sf=False)
+    # Sum sfs using the same frequencies - if expected_w and the scaled
+    # w are used, this could result in expected_sf and sf
+    # being summed differently
+    sf_summed = sum_degenerate_modes(expected_w, sf)
+    expected_sf_summed = sum_degenerate_modes(expected_w, expected_sf)
+    # Check that pars have scaled w and sf as expected
+    npt.assert_allclose(w, freqscale*expected_w, rtol=1e-5, atol=1e-2)
+    npt.assert_allclose(sf_summed, iscale*expected_sf_summed,
+                        rtol=1e-2, atol=1e-2)
 
 
 # Units of sf have changed, test the calculated and old expected
