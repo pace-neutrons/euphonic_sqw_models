@@ -137,9 +137,20 @@ class CoherentCrystal(object):
         sf : (n_modes,) tuple of (n_pts,) float ndarray
             The dynamical structure corresponding to phonon energies in w as a tuple of numpy float vectors
         """
-
-        intensity_scale = pars[0]
-        frequency_scale =  pars[1]
+        if not hasattr(pars, '__len__') or len(pars) == 1:
+            warnings.warn('horace_disp now requires pars of length 2: '
+                          'pars=[intensity_scale, frequency_scale], pars '
+                          'of length 1: pars=[intensity_scale] will stop '
+                          'working in a future release.',
+                          category=DeprecationWarning)
+            frequency_scale = 1.0
+            if hasattr(pars, '__len__'):
+                intensity_scale = pars[0]
+            else:
+                intensity_scale = pars
+        else:
+            intensity_scale = pars[0]
+            frequency_scale =  pars[1]
         if self.chunk > 0:
             lqh = len(qh)
             for i in range(int(np.ceil(lqh / self.chunk))):

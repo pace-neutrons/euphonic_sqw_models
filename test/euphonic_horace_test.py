@@ -181,6 +181,32 @@ def test_euphonic_sqw_models_pars(material, opt_dict, iscale, freqscale):
                         rtol=1e-2, atol=1e-2)
 
 
+@pytest.mark.parametrize("opt_dict", [{
+    'temperature': 300,
+    'debye_waller_grid': [6, 6, 6],
+    'negative_e': True,
+    'conversion_mat': (1./2)*np.array([[-1, 1, 1],
+                                       [1, -1, 1],
+                                       [1, 1, -1]])}])
+def test_using_length_1_pars_emits_deprecation_warning(opt_dict):
+    material_name, material_constructor, material_opts = materials[0]
+    opt_dict = {'temperature': 300,
+                'debye_waller_grid': [6, 6, 6],
+                'conversion_mat': (1./2)*np.array([[-1, 1, 1],
+                                                   [1, -1, 1],
+                                                   [1, 1, -1]])}
+    fc = material_constructor(**material_opts)
+    coherent_sqw = euphonic_sqw_models.CoherentCrystal(fc, **opt_dict)
+    with pytest.warns(DeprecationWarning):
+        w_1par, sf_1par = coherent_sqw.horace_disp(
+            qpts[:,0], qpts[:,1], qpts[:,2], [1.5])
+    # Also test that 1.0 is automatically set as frequency_scale
+    w_2par, sf_2par = coherent_sqw.horace_disp(
+        qpts[:,0], qpts[:,1], qpts[:,2], [1.5, 1.0])
+    npt.assert_allclose(w_1par, w_2par, rtol=1e-5, atol=1e-2)
+    npt.assert_allclose(sf_1par, sf_2par, rtol=1e-2, atol=1e-2)
+
+
 # Units of sf have changed, test the calculated and old expected
 # values are the same apart from a scale factor
 @pytest.mark.parametrize("material", materials)
