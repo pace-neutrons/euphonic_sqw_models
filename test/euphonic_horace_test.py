@@ -7,7 +7,6 @@ import scipy.io
 import euphonic
 
 import euphonic_sqw_models
-
 def get_abspath(filename, sub_dir):
     test_dir = os.path.dirname(os.path.realpath(__file__))
     return test_dir + os.path.sep + sub_dir + os.path.sep + filename
@@ -99,12 +98,18 @@ def sum_degenerate_modes(w, sf):
 
 
 def calculate_w_sf(material_opts, material_constructor, opt_dict,
-                   pars=[1.0, 1.0], sum_sf=True):
+                   intensity_scale=None, frequency_scale=None, sum_sf=True):
+    hdisp_kwargs = {}
+    if intensity_scale is not None:
+        hdisp_kwargs['intensity_scale'] = intensity_scale
+    if frequency_scale is not None:
+        hdisp_kwargs['frequency_scale'] = frequency_scale
     fc = material_constructor(**material_opts)
     opt_dict['asr'] = 'reciprocal'
     opt_dict['scattering_lengths'] = scattering_lengths
     coherent_sqw = euphonic_sqw_models.CoherentCrystal(fc, **opt_dict)
-    w, sf = coherent_sqw.horace_disp(qpts[:,0], qpts[:,1], qpts[:,2], pars)
+    w, sf = coherent_sqw.horace_disp(
+        qpts[:,0], qpts[:,1], qpts[:,2], **hdisp_kwargs)
     w = np.array(w).T
     sf = np.array(sf).T
     # Ignore acoustic structure factors by setting to zero - their
@@ -169,7 +174,7 @@ def test_euphonic_sqw_models_pars(material, opt_dict, iscale, freqscale):
         get_expected_output_filename(
             material_name, opt_dict), sum_sf=False)
     w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict,
-                           pars=[iscale, freqscale], sum_sf=False)
+                           intensity_scale=iscale, frequency_scale=freqscale, sum_sf=False)
     # Sum sfs using the same frequencies - if expected_w and the scaled
     # w are used, this could result in expected_sf and sf
     # being summed differently
@@ -188,23 +193,38 @@ def test_euphonic_sqw_models_pars(material, opt_dict, iscale, freqscale):
     'conversion_mat': (1./2)*np.array([[-1, 1, 1],
                                        [1, -1, 1],
                                        [1, 1, -1]])}])
-def test_using_length_1_pars_emits_deprecation_warning(opt_dict):
+def test_old_behaviour_single_parameter_sets_intensity_scale(opt_dict):
+    iscale = 1.5
     material_name, material_constructor, material_opts = materials[0]
-    opt_dict = {'temperature': 300,
-                'debye_waller_grid': [6, 6, 6],
-                'conversion_mat': (1./2)*np.array([[-1, 1, 1],
-                                                   [1, -1, 1],
-                                                   [1, 1, -1]])}
     fc = material_constructor(**material_opts)
+    opt_dict['asr'] = 'reciprocal'
+    opt_dict['scattering_lengths'] = scattering_lengths
     coherent_sqw = euphonic_sqw_models.CoherentCrystal(fc, **opt_dict)
-    with pytest.warns(DeprecationWarning):
-        w_1par, sf_1par = coherent_sqw.horace_disp(
-            qpts[:,0], qpts[:,1], qpts[:,2], [1.5])
-    # Also test that 1.0 is automatically set as frequency_scale
-    w_2par, sf_2par = coherent_sqw.horace_disp(
-        qpts[:,0], qpts[:,1], qpts[:,2], [1.5, 1.0])
-    npt.assert_allclose(w_1par, w_2par, rtol=1e-5, atol=1e-2)
-    npt.assert_allclose(sf_1par, sf_2par, rtol=1e-2, atol=1e-2)
+    # Pass a single positional argument for iscale - this is the old
+    # syntax. Test that it hasn't broken, if it has we may need to raise
+    # a deprecation warning
+    w, sf = coherent_sqw.horace_disp(
+        qpts[:,0], qpts[:,1], qpts[:,2], [iscale])
+    w = np.array(w).T
+    sf = np.array(sf).T
+    # Ignore acoustic structure factors by setting to zero - their
+    # values can be unstable at small frequencies
+    n = int(np.shape(sf)[1] / 2)
+    sf[:,:3] = 0.
+    sf[:,n:(n+3)] = 0
+
+    expected_w, expected_sf = get_expected_w_sf(
+        get_expected_output_filename(
+            material_name, opt_dict), sum_sf=False)
+    # Sum sfs using the same frequencies - if expected_w and the scaled
+    # w are used, this could result in expected_sf and sf
+    # being summed differently
+    sf_summed = sum_degenerate_modes(expected_w, sf)
+    expected_sf_summed = sum_degenerate_modes(expected_w, expected_sf)
+    # Check that pars have scaled w and sf as expected
+    npt.assert_allclose(w, expected_w, rtol=1e-5, atol=1e-2)
+    npt.assert_allclose(sf_summed, iscale*expected_sf_summed,
+                        rtol=1e-2, atol=1e-2)
 
 
 # Units of sf have changed, test the calculated and old expected

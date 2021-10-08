@@ -16,10 +16,9 @@ class CoherentCrystal(object):
 
     Methods
     -------
-    w, sf = horace_disp(qh, qk, ql, pars=[1.0, 1.0])
+    w, sf = horace_disp(qh, qk, ql, intensity_scale=1.0, frequency_scale=1.0)
         Calculates the phonon dispersion surfaces `w` and structure factor `sf` at the specified
-        (qh, qk, ql) points. The optional parameters `pars=[intensity_scale, frequency scale]`
-        is are the intensity and frequency scaling factors
+        (qh, qk, ql) points, with optional intensity and frequency scaling factors
 
     Attributes
     ----------
@@ -110,7 +109,7 @@ class CoherentCrystal(object):
             sf = np.hstack((sf, neg_sf))
         return w, sf
         
-    def horace_disp(self, qh, qk, ql, pars=[1.0, 1.0], *args, **kwargs):
+    def horace_disp(self, qh, qk, ql, intensity_scale=1.0, frequency_scale=1.0, *args, **kwargs):
         """
         Calculates the phonon dispersion surface for input qh, qk, and ql vectors for use with Horace
  
@@ -118,13 +117,11 @@ class CoherentCrystal(object):
         ----------
         qh, qk, ql : (n_pts,) float ndarray
             The q-points to calculate at as separate vectors
-        pars : Sequence[float, float]
-            Parameters for the calculation:
-                pars[0] = intensity scaling - factor to multiply the
-                          intensity by
-                pars[1] = frequency scaling - factor to multiply the phonon
-                          frequencies by, as DFT can often overestimate
-                          frequencies
+        intensity_scale : float
+            The factor to multiply the intensity by
+        frequency_scale : float
+                The factor to multiply the phonon frequencies
+                by, as DFT can often overestimate frequencies
         args: tuple
             Arguments passed directly to the convolution function
         kwargs : dict
@@ -137,20 +134,6 @@ class CoherentCrystal(object):
         sf : (n_modes,) tuple of (n_pts,) float ndarray
             The dynamical structure corresponding to phonon energies in w as a tuple of numpy float vectors
         """
-        if not hasattr(pars, '__len__') or len(pars) == 1:
-            warnings.warn('horace_disp now requires pars of length 2: '
-                          'pars=[intensity_scale, frequency_scale], pars '
-                          'of length 1: pars=[intensity_scale] will stop '
-                          'working in a future release.',
-                          category=DeprecationWarning)
-            frequency_scale = 1.0
-            if hasattr(pars, '__len__'):
-                intensity_scale = pars[0]
-            else:
-                intensity_scale = pars
-        else:
-            intensity_scale = pars[0]
-            frequency_scale =  pars[1]
         if self.chunk > 0:
             lqh = len(qh)
             for i in range(int(np.ceil(lqh / self.chunk))):
