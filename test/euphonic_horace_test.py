@@ -98,18 +98,13 @@ def sum_degenerate_modes(w, sf):
 
 
 def calculate_w_sf(material_opts, material_constructor, opt_dict,
-                   intensity_scale=None, frequency_scale=None, sum_sf=True):
-    hdisp_kwargs = {}
-    if intensity_scale is not None:
-        hdisp_kwargs['intensity_scale'] = intensity_scale
-    if frequency_scale is not None:
-        hdisp_kwargs['frequency_scale'] = frequency_scale
+                   sum_sf=True, hdisp_args=(), hdisp_kwargs={}):
     fc = material_constructor(**material_opts)
     opt_dict['asr'] = 'reciprocal'
     opt_dict['scattering_lengths'] = scattering_lengths
     coherent_sqw = euphonic_sqw_models.CoherentCrystal(fc, **opt_dict)
     w, sf = coherent_sqw.horace_disp(
-        qpts[:,0], qpts[:,1], qpts[:,2], **hdisp_kwargs)
+        qpts[:,0], qpts[:,1], qpts[:,2], *hdisp_args, **hdisp_kwargs)
     w = np.array(w).T
     sf = np.array(sf).T
     # Ignore acoustic structure factors by setting to zero - their
@@ -165,16 +160,23 @@ def test_euphonic_sqw_models(material, opt_dict, run_opts):
     'conversion_mat': (1./2)*np.array([[-1, 1, 1],
                                        [1, -1, 1],
                                        [1, 1, -1]])}])
-@pytest.mark.parametrize("iscale, freqscale", [(1.0, 1.3),
-                                               (1e-4, 1.0),
-                                               (1.5e3, 0.4)])
-def test_euphonic_sqw_models_pars(material, opt_dict, iscale, freqscale):
+# Test a combination of keyword and positional arguments
+# Is required for use with pace-python (Toby/Multifit
+# allow positional only for fitting parameters)
+@pytest.mark.parametrize("iscale, freqscale, args, kwargs",
+        [(1.0, 1.3, (), {'frequency_scale': 1.3}),
+         (1e-4, 1.0, (1e-4,), {}),
+         (1.5e3, 0.4, (1.5e3, 0.4), {}),
+         (2e3, 0.5, (), {'frequency_scale': 0.5, 'intensity_scale': 2e3}),
+         (50, 0.9, (50,), {'frequency_scale': 0.9})])
+def test_euphonic_sqw_models_pars(
+        material, opt_dict, iscale, freqscale, args, kwargs):
     material_name, material_constructor, material_opts = material
     expected_w, expected_sf = get_expected_w_sf(
         get_expected_output_filename(
             material_name, opt_dict), sum_sf=False)
     w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict,
-                           intensity_scale=iscale, frequency_scale=freqscale, sum_sf=False)
+                           sum_sf=False, hdisp_args=args, hdisp_kwargs=kwargs)
     # Sum sfs using the same frequencies - if expected_w and the scaled
     # w are used, this could result in expected_sf and sf
     # being summed differently
