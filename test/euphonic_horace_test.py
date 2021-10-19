@@ -183,9 +183,9 @@ def test_euphonic_sqw_models_pars(
     sf_summed = sum_degenerate_modes(expected_w, sf)
     expected_sf_summed = sum_degenerate_modes(expected_w, expected_sf)
     # Check that pars have scaled w and sf as expected
-    npt.assert_allclose(w, freqscale*expected_w, rtol=1e-5, atol=1e-2)
+    npt.assert_allclose(w, freqscale*expected_w, rtol=1e-5, atol=1e-2*freqscale)
     npt.assert_allclose(sf_summed, iscale*expected_sf_summed,
-                        rtol=1e-2, atol=1e-2)
+                        rtol=1e-2, atol=1e-2*iscale)
 
 
 @pytest.mark.parametrize("opt_dict", [{
