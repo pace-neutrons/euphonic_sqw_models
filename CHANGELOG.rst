@@ -1,6 +1,16 @@
 `Unreleased <https://github.com/pace-neutrons/euphonic_sqw_models/compare/v0.4.0...HEAD>`_
 ----------
 
+- Improvements:
+
+  - There is a new ``frequency_scale=1.0`` argument to ``horace_disp`` which
+    allows the output frequencies to be scaled
+
+- Breaking changes:
+
+  - The ``pars=[]`` argument to ``horace_disp`` has been changed to
+    ``intensity_scale=1.0``
+
 `v0.4.0 <https://github.com/pace-neutrons/euphonic_sqw_models/compare/v0.3.0...0.4.0>`_
 ------
 
