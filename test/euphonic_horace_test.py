@@ -7,7 +7,6 @@ import scipy.io
 import euphonic
 
 import euphonic_sqw_models
-
 def get_abspath(filename, sub_dir):
     test_dir = os.path.dirname(os.path.realpath(__file__))
     return test_dir + os.path.sep + sub_dir + os.path.sep + filename
@@ -23,9 +22,6 @@ negative_e = [None, True]
 conversion_mat = [None, (1./2)*np.array([[-1, 1, 1], [1, -1, 1], [1, 1, -1]])]
 lim = [None, 1e2]  # Units: mbarn
 
-run_pars = [{'use_c': False, 'n_threads': 1, 'chunk': 5, 'dipole_parameter': 0.75},
-            {'use_c': True, 'n_threads': 1, 'chunk': 0},
-            {'use_c': True, 'n_threads': 2, 'chunk': 0}]
 
 qpts = [[0.0,  0.0,  0.0],
         [0.1,  0.2,  0.3],
@@ -36,29 +32,34 @@ qpts = [[0.0,  0.0,  0.0],
         [0.0, -0.5,  0.0],
         [0.0,  0.0, -0.5],
         [1.0, -1.0, -1.0]]
+qpts = np.array(qpts)
 scattering_lengths = {'La': 8.24, 'Zr': 7.16, 'O': 5.803,
                       'Si': 4.1491, 'Na': 3.63, 'Cl': 9.577}
-scale = 1.0
-qpts = np.array(qpts)
+iscale = 1.0
+freq_scale = 1.0
+pars = [iscale, freq_scale]
 
-def parameter_generator():
+
+def get_test_opts():
+    opts = []
     for tt in temp:
-        for mat in materials:
-            for dw in dw_grid:
-                for bos in bose:
-                    for ne in negative_e:
-                        for cmat in conversion_mat:
-                            for lm in lim:
-                                yield {'temperature': tt,
-                                       'material': mat,
-                                       'debye_waller_grid': dw,
-                                       'bose': bos,
-                                       'negative_e': ne,
-                                       'conversion_mat': cmat,
-                                       'lim': lm}
+        for dw in dw_grid:
+            for bos in bose:
+                for ne in negative_e:
+                    for cmat in conversion_mat:
+                        for lm in lim:
+                            opts.append({
+                                'temperature': tt,
+                                'debye_waller_grid': dw,
+                                'bose': bos,
+                                'negative_e': ne,
+                                'conversion_mat': cmat,
+                                'lim': lm})
+    return opts
 
-def get_expected_output_filename(material_name, pars, opts):
-    fname = f"{material_name}_T{pars[0]}"
+
+def get_expected_output_filename(material_name, opts):
+    fname = f"{material_name}_T{opts['temperature']}"
     if opts.get('debye_waller_grid', None) is not None:
         fname += "_dw" + "".join([str(v) for v in opts['debye_waller_grid']])
     if opts.get('bose', None) is not None:
@@ -80,6 +81,7 @@ def get_expected_output_filename(material_name, pars, opts):
     fname += '.mat'
     return get_abspath(fname, 'expected_output');
 
+
 def sum_degenerate_modes(w, sf):
     tol = 0.1;
     rows, cols = np.shape(w);
@@ -94,25 +96,29 @@ def sum_degenerate_modes(w, sf):
         summed_sf[i, :len(summed)] = summed;
     return summed_sf
 
-def calculate_w_sf(material_pars, material_constructor, par_dict):
-    fc = material_constructor(**material_pars)
-    par_dict['asr'] = 'reciprocal'
-    par_dict['scattering_lengths'] = scattering_lengths
-    coherent_sqw = euphonic_sqw_models.CoherentCrystal(fc, **par_dict)
-    w, sf = coherent_sqw.horace_disp(qpts[:,0], qpts[:,1], qpts[:,2], scale)
+
+def calculate_w_sf(material_opts, material_constructor, opt_dict,
+                   sum_sf=True, hdisp_args=(), hdisp_kwargs={}):
+    fc = material_constructor(**material_opts)
+    opt_dict['asr'] = 'reciprocal'
+    opt_dict['scattering_lengths'] = scattering_lengths
+    coherent_sqw = euphonic_sqw_models.CoherentCrystal(fc, **opt_dict)
+    w, sf = coherent_sqw.horace_disp(
+        qpts[:,0], qpts[:,1], qpts[:,2], *hdisp_args, **hdisp_kwargs)
     w = np.array(w).T
     sf = np.array(sf).T
     # Ignore acoustic structure factors by setting to zero - their
     # values can be unstable at small frequencies
     n = int(np.shape(sf)[1] / 2)
     sf[:,:3] = 0.
-    if 'negative_e' in par_dict and par_dict['negative_e']:
+    if 'negative_e' in opt_dict and opt_dict['negative_e']:
         sf[:,n:(n+3)] = 0
-    # Need to sum over degenerate modes to compare structure factors
-    sf_summed = sum_degenerate_modes(w, sf)
-    return w, sf_summed
+    if sum_sf:
+        sf = sum_degenerate_modes(w, sf)
+    return w, sf
 
-def get_expected_w_sf(fname):
+
+def get_expected_w_sf(fname, sum_sf=True):
     ref_dat = scipy.io.loadmat(fname)
     expected_w = np.concatenate(ref_dat['expected_w'][0], axis=1)
     expected_sf = np.concatenate(ref_dat['expected_sf'][0], axis=1)
@@ -121,51 +127,127 @@ def get_expected_w_sf(fname):
     if 'negative_e' in fname:
         n = int(np.shape(expected_sf)[1] / 2)
         expected_sf[:,n:(n+3)] = 0
-    expected_sf_summed = sum_degenerate_modes(expected_w, expected_sf)
-    return expected_w, expected_sf_summed
+    if sum_sf:
+        expected_sf = sum_degenerate_modes(expected_w, expected_sf)
+    return expected_w, expected_sf
 
-@pytest.mark.parametrize("par_dict", parameter_generator())
-def test_euphonic_sqw_models(par_dict):
-    material_name, material_constructor, material_pars = tuple(
-        par_dict.pop('material'))
+@pytest.mark.parametrize("material", materials)
+@pytest.mark.parametrize("opt_dict", get_test_opts())
+@pytest.mark.parametrize("run_opts", [
+    {'use_c': False, 'n_threads': 1, 'chunk': 5, 'dipole_parameter': 0.75},
+    {'use_c': True, 'n_threads': 1, 'chunk': 0},
+    {'use_c': True, 'n_threads': 2}])
+def test_euphonic_sqw_models(material, opt_dict, run_opts):
+    material_name, material_constructor, material_opts = material
     expected_w, expected_sf = get_expected_w_sf(
         get_expected_output_filename(
-            material_name, [par_dict['temperature'], scale], par_dict))
+            material_name, opt_dict))
 
-    for run_par in run_pars:
-        par_dict.update(run_par)
-        for remove_if_none in list(par_dict.keys()):
-            if remove_if_none in par_dict and par_dict[remove_if_none] is None:
-                par_dict.pop(remove_if_none)
-        w, sf = calculate_w_sf(material_pars, material_constructor, par_dict)
-        npt.assert_allclose(w, expected_w, rtol=1e-5, atol=1e-2)
-        npt.assert_allclose(sf, expected_sf, rtol=1e-2, atol=1e-2)
+    opt_dict.update(run_opts)
+    # Don't pass None options
+    opt_dict = {k: v for k, v in opt_dict.items() if v is not None}
 
-# For this test only test a subset of arguments
-def scale_test_parameter_generator():
-    for tt in temp:
-        for mat in materials:
-            yield {'temperature': tt,
-                   'material': mat,
-                   'debye_waller_grid':[6, 6, 6],
-                   'negative_e': True,
-                   'conversion_mat': (1./2)*np.array([[-1, 1, 1],
-                                                      [1, -1, 1],
-                                                      [1, 1, -1]])}
+    w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict)
+    npt.assert_allclose(w, expected_w, rtol=1e-5, atol=1e-2)
+    npt.assert_allclose(sf, expected_sf, rtol=1e-2, atol=1e-2)
+
+
+@pytest.mark.parametrize("material", materials)
+@pytest.mark.parametrize("opt_dict", [{
+    'temperature': 300,
+    'debye_waller_grid': [6, 6, 6],
+    'negative_e': True,
+    'conversion_mat': (1./2)*np.array([[-1, 1, 1],
+                                       [1, -1, 1],
+                                       [1, 1, -1]])}])
+# Test a combination of keyword and positional arguments
+# Is required for use with pace-python (Toby/Multifit
+# allow positional only for fitting parameters)
+@pytest.mark.parametrize("iscale, freqscale, args, kwargs",
+        [(1.0, 1.3, (), {'frequency_scale': 1.3}),
+         (1e-4, 1.0, (1e-4,), {}),
+         (1.5e3, 0.4, (1.5e3, 0.4), {}),
+         (2e3, 0.5, (), {'frequency_scale': 0.5, 'intensity_scale': 2e3}),
+         (50, 0.9, (50,), {'frequency_scale': 0.9})])
+def test_euphonic_sqw_models_pars(
+        material, opt_dict, iscale, freqscale, args, kwargs):
+    material_name, material_constructor, material_opts = material
+    expected_w, expected_sf = get_expected_w_sf(
+        get_expected_output_filename(
+            material_name, opt_dict), sum_sf=False)
+    w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict,
+                           sum_sf=False, hdisp_args=args, hdisp_kwargs=kwargs)
+    # Sum sfs using the same frequencies - if expected_w and the scaled
+    # w are used, this could result in expected_sf and sf
+    # being summed differently
+    sf_summed = sum_degenerate_modes(expected_w, sf)
+    expected_sf_summed = sum_degenerate_modes(expected_w, expected_sf)
+    # Check that pars have scaled w and sf as expected
+    npt.assert_allclose(w, freqscale*expected_w, rtol=1e-5, atol=1e-2*freqscale)
+    npt.assert_allclose(sf_summed, iscale*expected_sf_summed,
+                        rtol=1e-2, atol=1e-2*iscale)
+
+
+@pytest.mark.parametrize("opt_dict", [{
+    'temperature': 300,
+    'debye_waller_grid': [6, 6, 6],
+    'negative_e': True,
+    'conversion_mat': (1./2)*np.array([[-1, 1, 1],
+                                       [1, -1, 1],
+                                       [1, 1, -1]])}])
+def test_old_behaviour_single_parameter_sets_intensity_scale(opt_dict):
+    iscale = 1.5
+    material_name, material_constructor, material_opts = materials[0]
+    fc = material_constructor(**material_opts)
+    opt_dict['asr'] = 'reciprocal'
+    opt_dict['scattering_lengths'] = scattering_lengths
+    coherent_sqw = euphonic_sqw_models.CoherentCrystal(fc, **opt_dict)
+    # Pass a single positional argument for iscale - this is the old
+    # syntax. Test that it hasn't broken, if it has we may need to raise
+    # a deprecation warning
+    w, sf = coherent_sqw.horace_disp(
+        qpts[:,0], qpts[:,1], qpts[:,2], [iscale])
+    w = np.array(w).T
+    sf = np.array(sf).T
+    # Ignore acoustic structure factors by setting to zero - their
+    # values can be unstable at small frequencies
+    n = int(np.shape(sf)[1] / 2)
+    sf[:,:3] = 0.
+    sf[:,n:(n+3)] = 0
+
+    expected_w, expected_sf = get_expected_w_sf(
+        get_expected_output_filename(
+            material_name, opt_dict), sum_sf=False)
+    # Sum sfs using the same frequencies - if expected_w and the scaled
+    # w are used, this could result in expected_sf and sf
+    # being summed differently
+    sf_summed = sum_degenerate_modes(expected_w, sf)
+    expected_sf_summed = sum_degenerate_modes(expected_w, expected_sf)
+    # Check that pars have scaled w and sf as expected
+    npt.assert_allclose(w, expected_w, rtol=1e-5, atol=1e-2)
+    npt.assert_allclose(sf_summed, iscale*expected_sf_summed,
+                        rtol=1e-2, atol=1e-2)
+
 
 # Units of sf have changed, test the calculated and old expected
 # values are the same apart from a scale factor
-@pytest.mark.parametrize("par_dict", scale_test_parameter_generator())
-def test_sf_unit_change(par_dict):
-    material_name, material_constructor, material_pars = tuple(
-        par_dict.pop('material'))
+@pytest.mark.parametrize("material", materials)
+@pytest.mark.parametrize("opt_dict", [{
+    'temperature': 300,
+    'debye_waller_grid': [6, 6, 6],
+    'negative_e': True,
+    'conversion_mat': (1./2)*np.array([[-1, 1, 1],
+                                       [1, -1, 1],
+                                       [1, 1, -1]])}])
+def test_sf_unit_change(material, opt_dict):
+    material_name, material_constructor, material_opts = material
     fname = get_expected_output_filename(
-            material_name, [par_dict['temperature'], scale], par_dict)
+            material_name, opt_dict)
     expected_w, expected_sf = get_expected_w_sf(os.path.join(
         os.path.dirname(fname),
         f'old_units_{os.path.basename(fname)}'))
 
-    w, sf = calculate_w_sf(material_pars, material_constructor, par_dict)
+    w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict)
 
     npt.assert_allclose(w, expected_w, rtol=1e-5, atol=1e-2)
 
