@@ -21,9 +21,9 @@ class CoherentCrystal(object):
 
     Methods
     -------
-    w, sf = horace_disp(qh, qk, ql,
-                        intensity_scale=1.0,
-                        frequency_scale=1.0)
+    w, sf = horace_disp(qh: np.ndarray, qk: np.ndarray, ql: np.ndarray,
+                        intensity_scale: float = 1.0,
+                        frequency_scale: float = 1.0)
         Calculates the phonon dispersion surfaces `w` and structure
         factor `sf` at the specified (qh, qk, ql) points, with optional
         intensity and frequency scaling factors
@@ -64,25 +64,11 @@ class CoherentCrystal(object):
         database (internal or from a file)
     verbose : bool (default: True)
         Whether to print information on calculation progress
-    asr : str or None (default: None)
-        Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
-    dipole : bool (default: True)
-        Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
-    dipole_parameter : float (default: 1.0)
-        Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
-    splitting : bool (default: True)
-        Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
-    insert_gamma : bool (default: True)
-        Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
-    reduce_qpts : bool (default: True)
-        Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
-    use_c : bool (default: None)
-        Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
-    n_threads : int (default: None)
-        Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
-    eta_scale : float (default: 1.0)
-        .. deprecated:: 0.4.0
-        Deprecated since euphonic_sqw_models 0.4.0 and Euphonic 0.6.0
+    **calc_modes_kwargs
+        Any other keyword arguments (.e.g asr, n_threads) will be
+        passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes.
+        See the available arguments with
+        help(euphonic.ForceConstants.calculate_qpoint_phonon_modes)
     """
     def __init__(
             self,
@@ -98,16 +84,7 @@ class CoherentCrystal(object):
             scattering_lengths: Union[
                 str, Dict[str, Union[Quantity, float]]] = 'Sears1992',
             verbose: bool = True,
-            weights: Optional[np.ndarray] = None,
-            asr: Optional[str] = None,
-            dipole: bool = True,
-            dipole_parameter: float = 1.0,
-            splitting: bool = True,
-            insert_gamma: bool = False,
-            reduce_qpts: bool = True,
-            use_c: Optional[bool] = None,
-            n_threads: Optional[bool] = None,
-            eta_scale: float = 1.0) -> None:
+            **calc_modes_kwargs) -> None:
         """
         Parameters
         ----------
@@ -145,25 +122,11 @@ class CoherentCrystal(object):
             string denoting a database (internal or from a file)
         verbose
             Whether to print information on calculation progress
-        asr
-            Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
-        dipole
-            Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
-        dipole_parameter
-            Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
-        splitting
-            Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
-        insert_gamma
-            Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
-        reduce_qpts
-            Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
-        use_c
-            Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
-        n_threads
-            Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
-        eta_scale
-            .. deprecated:: 0.4.0
-            Deprecated since euphonic_sqw_models 0.4.0 and Euphonic 0.6.0
+        **calc_modes_kwargs
+            Any other keyword arguments (.e.g asr, n_threads) will be
+            passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes.
+            See the available arguments with
+            help(euphonic.ForceConstants.calculate_qpoint_phonon_modes)
         """
         self.force_constants = force_constants
         self.debye_waller_grid = debye_waller_grid
@@ -176,16 +139,7 @@ class CoherentCrystal(object):
         self.lim = lim
         self.scattering_lengths = scattering_lengths
         self.verbose = verbose
-        self.weights = weights
-        self.asr = asr
-        self.dipole = dipole
-        self.dipole_parameter = dipole_parameter
-        self.splitting = splitting
-        self.insert_gamma = insert_gamma
-        self.reduce_qpts = reduce_qpts
-        self.use_c = use_c
-        self.n_threads = n_threads
-        self.eta_scale = eta_scale
+        self.calc_modes_kwargs = calc_modes_kwargs
 
     def _calculate_sf(self, qpts: np.ndarray
                       ) -> Tuple[np.ndarray, np.ndarray]:
@@ -293,11 +247,7 @@ class CoherentCrystal(object):
     def _calculate_phonon_modes(self, qpts: np.ndarray
                                 ) -> QpointPhononModes:
         return self.force_constants.calculate_qpoint_phonon_modes(
-            qpts, weights=self.weights, asr=self.asr, dipole=self.dipole,
-            dipole_parameter=self.dipole_parameter, eta_scale=self.eta_scale,
-            splitting=self.splitting, insert_gamma=self.insert_gamma,
-            reduce_qpts=self.reduce_qpts, use_c=self.use_c,
-            n_threads=self.n_threads)
+            qpts, **self.calc_modes_kwargs)
 
     def _calculate_debye_waller(self) -> None:
         if self.temperature <= 0.0:
