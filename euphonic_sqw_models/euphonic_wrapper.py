@@ -292,8 +292,6 @@ class CoherentCrystal(object):
 
     def _calculate_phonon_modes(self, qpts: np.ndarray
                                 ) -> QpointPhononModes:
-        if self.force_constants is None:
-            raise RuntimeError('Force constants model not set')
         return self.force_constants.calculate_qpoint_phonon_modes(
             qpts, weights=self.weights, asr=self.asr, dipole=self.dipole,
             dipole_parameter=self.dipole_parameter, eta_scale=self.eta_scale,
@@ -313,19 +311,15 @@ class CoherentCrystal(object):
             self.temperature)
 
     @property
-    def force_constants(self) -> Union[ForceConstants, None]:
+    def force_constants(self) -> ForceConstants:
         return self._force_constants
 
     @force_constants.setter
-    def force_constants(self, val: Union[ForceConstants, None, str]) -> None:
-        # Using string 'None' to make it easier for Matlab users
-        if val is None or val == 'None':
-            self._force_constants = None
+    def force_constants(self, val: ForceConstants) -> None:
+        if hasattr(val, 'calculate_qpoint_phonon_modes'):
+            self._force_constants = val
         else:
-            if hasattr(val, 'calculate_qpoint_phonon_modes'):
-                self._force_constants = val
-            else:
-                raise ValueError('Invalid force constant model')
+            raise ValueError('Invalid force constant model')
 
     @property
     def debye_waller(self) -> Union[DebyeWaller, None]:
@@ -352,7 +346,7 @@ class CoherentCrystal(object):
             self._debye_waller_grid = None
         else:
             val = tuple(np.squeeze(np.array(val)))
-            if np.shape(val) == (3, ):
+            if np.shape(val) == (3,):
                 self._debye_waller_grid = tuple([int(v) for v in val])
                 # Reset the Debye Waller factor if it was previously set.
                 self.debye_waller = None
