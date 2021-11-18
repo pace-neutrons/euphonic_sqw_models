@@ -1,7 +1,11 @@
-import numpy as np
 import os
 import warnings
-from euphonic import Crystal, ForceConstants, QpointPhononModes, DebyeWaller, ureg
+from typing import Optional, Dict, Union, Tuple
+
+import numpy as np
+
+from euphonic import (Crystal, ForceConstants, QpointPhononModes, DebyeWaller,
+                      Quantity, ureg)
 from euphonic.util import mp_grid
 
 # Allow Euphonic's deprecation warnings to be raised if deprecated
@@ -11,83 +15,174 @@ warnings.filterwarnings('default', category=DeprecationWarning,
 
 class CoherentCrystal(object):
     """
-    A class to calculate neutron scattering dispersions surfaces for use in Horace.
-    It must be constructed from a Euphonic ForceConstants object.
+    A class to calculate neutron scattering dispersions surfaces for
+    use in Horace. It must be constructed from a Euphonic
+    ForceConstants object.
 
     Methods
     -------
-    w, sf = horace_disp(qh, qk, ql, intensity_scale=1.0, frequency_scale=1.0)
-        Calculates the phonon dispersion surfaces `w` and structure factor `sf` at the specified
-        (qh, qk, ql) points, with optional intensity and frequency scaling factors
+    w, sf = horace_disp(qh, qk, ql,
+                        intensity_scale=1.0,
+                        frequency_scale=1.0)
+        Calculates the phonon dispersion surfaces `w` and structure
+        factor `sf` at the specified (qh, qk, ql) points, with optional
+        intensity and frequency scaling factors
 
     Attributes
     ----------
-    temperature : float Quantity (default: 0 K)
-        Temperature at which to calculate phonons (used for Bose and Debye-Waller factor calculations)
-    bose : bool (default: True)
-        Whether to include the Bose temperature factor in the calculated structure factor
+    force_constants : ForceConstants
+        The force constants
+    debye_waller_grid : (3,) float ndarray or None (default: None)
+        The Monkhorst-Pack q-point grid size to use for the
+        Debye-Waller calculation
     debye_waller : DebyeWaller object
-        This is computed and set internally by the class when the computation requests it 
-        (debye_waller_grid is set and temperature is non-zero)
-    debye_waller_grid : (3,) float ndarray (default: None)
-        The Monkhorst-Pack q-point grid size to use for the Debye-Waller calculation
+        This is computed and set internally by the class when the
+        computation requests it (debye_waller_grid is set and
+        temperature is non-zero)
+    temperature : float Quantity (default: 0 K)
+        Temperature at which to calculate phonons (used for Bose and
+        Debye-Waller factor calculations)
+    bose : bool (default: True)
+        Whether to include the Bose temperature factor in the
+        calculated structure factor
     negative_e : bool (default: False)
-        Whether to calculate the phonon anihilation / neutron energy gain / negative energy spectrum
-    conversion_mat : (3, 3) float ndarray (default: identity)
-        This matrix is applied to the input (hkl) q-point values before the phonon calculation
+        Whether to calculate the phonon annihilation / neutron energy
+        gain / negative energy spectrum
+    conversion_mat : (3, 3) float ndarray or None (default: None)
+        This matrix is applied to the input (hkl) q-point values before
+        the phonon calculation
     chunk : float (default: 5000)
-        If non-zero will chunk the phonon calculation into blocks of <chunk> q-points
+        If non-zero will chunk the phonon calculation into blocks of
+        <chunk> q-points
     lim : float (default: infinity)
-        A cut-off for the calculated structure factor where values above `lim` is set equal to it.
+        A cut-off for the calculated structure factor where values
+        above `lim` are set equal to it
     scattering_lengths : dict or string (default: 'Sears1992')
-        The scattering lengths (in femtometres) to use for the phonon calculations either as 
-        a dictionary with elements as keys or a string denoting a database (internal or from file)
-    asr : {'realspace', 'reciprocal'}, optional
-    dipole : boolean, optional
-    dipole_parameter : float, optional
-    eta_scale : float, optional
+        The scattering lengths to use for the phonon
+        calculations either as a dictionary with elements as keys or a
+        string denoting a database (internal or from a file)
+    verbose : bool (default: True)
+        Whether to print information on calculation progress
+    asr : str or None (default: None)
+        Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
+    dipole : bool (default: True)
+        Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
+    dipole_parameter : float (default: 1.0)
+        Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
+    splitting : bool (default: True)
+        Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
+    insert_gamma : bool (default: True)
+        Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
+    reduce_qpts : bool (default: True)
+        Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
+    use_c : bool (default: None)
+        Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
+    n_threads : int (default: None)
+        Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
+    eta_scale : float (default: 1.0)
         .. deprecated:: 0.4.0
         Deprecated since euphonic_sqw_models 0.4.0 and Euphonic 0.6.0
-    splitting : boolean, optional
-    insert_gamma : boolean, optional
-    reduce_qpts : boolean, optional
-    use_c : boolean, optional
-    n_threads : int, optional
-        These are parameters used in the `calculate_qpoint_phonon_modes` method of ForceConstants
-        Type `help(fc.calculate_qpoint_phonon_modes)` where fc is the ForceConstants object you created.
     """
-    # This a wrapper around the Euphonic ForceConstants and QpointPhononModes classes to make it easier to access from Matlab
-    # It is meant to be used with a Matlab python_wrapper class and implements a horace_sqw function for use with Horace
-
-    defaults = {'debye_waller': None,
-                'debye_waller_grid': None,
-                'temperature': 0.0 * ureg('K'),
-                'bose': True,
-                'negative_e': False,
-                'conversion_mat': None,
-                'chunk': 5000,
-                'lim': np.inf,
-                'scattering_lengths': 'Sears1992',
-                'weights': None,
-                'asr': None,
-                'dipole': True,
-                'dipole_parameter': 1.0 ,
-                'eta_scale': 1.0,
-                'splitting': True,
-                'insert_gamma': False,
-                'reduce_qpts': True,
-                'use_c': None,
-                'n_threads': None,
-                'verbose': True}
-
-    def __init__(self, force_constants, **kwargs):
-        for key, val in self.defaults.items():
-            setattr(self, key, kwargs.pop(key, self.defaults[key]))
-        if kwargs:
-            raise ValueError(
-                f'Unrecognised keyword arguments {list(kwargs.keys())}, '
-                f'accepted arguments are {list(self.defaults.keys())}')
+    def __init__(
+            self,
+            force_constants: ForceConstants,
+            debye_waller_grid: Optional[Tuple[int, int, int]] = None,
+            debye_waller: Optional[DebyeWaller] = None,
+            temperature: Quantity = 0*ureg('K'),
+            bose: bool = True,
+            negative_e: bool = False,
+            conversion_mat: Optional[np.ndarray] = None,
+            chunk: int = 5000,
+            lim: float = np.inf,
+            scattering_lengths: Union[str, Dict[str, Quantity]] = 'Sears1992',
+            verbose: bool = True,
+            weights: Optional[np.ndarray] = None,
+            asr: Optional[str] = None,
+            dipole: bool = True,
+            dipole_parameter: float = 1.0,
+            splitting: bool = True,
+            insert_gamma: bool = False,
+            reduce_qpts: bool = True,
+            use_c: Optional[bool] = None,
+            n_threads: Optional[bool] = None,
+            eta_scale: float = 1.0) -> None:
+        """
+        Parameters
+        ----------
+        force_constants
+            The force constants
+        debye_waller_grid
+            The Monkhorst-Pack q-point grid size to use for the
+            Debye-Waller calculation
+        debye_waller
+            This is computed and set internally by the class when the
+            computation requests it (debye_waller_grid is set and
+            temperature is non-zero)
+        temperature
+            Temperature at which to calculate phonons (used for Bose and
+            Debye-Waller factor calculations)
+        bose
+            Whether to include the Bose temperature factor in the
+            calculated structure factor
+        negative_e
+            Whether to calculate the phonon annihilation / neutron energy
+            gain / negative energy spectrum
+        conversion_mat
+            Shape (3, 3) float ndarray. This matrix is applied to the
+            input (hkl) q-point values before the phonon calculation
+        chunk
+            If non-zero will chunk the phonon calculation into blocks of
+            <chunk> q-points
+        lim
+            A cut-off for the calculated structure factor where values
+            above `lim` are set equal to it
+        scattering_lengths
+            The scattering lengths (in femtometres) to use for the phonon
+            calculations either as a dictionary with elements as keys or a
+            string denoting a database (internal or from a file)
+        verbose
+            Whether to print information on calculation progress
+        asr
+            Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
+        dipole
+            Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
+        dipole_parameter
+            Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
+        splitting
+            Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
+        insert_gamma
+            Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
+        reduce_qpts
+            Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
+        use_c
+            Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
+        n_threads
+            Is passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes
+        eta_scale
+            .. deprecated:: 0.4.0
+            Deprecated since euphonic_sqw_models 0.4.0 and Euphonic 0.6.0
+        """
         self.force_constants = force_constants
+        self.debye_waller_grid = debye_waller_grid
+        self.debye_waller = debye_waller
+        self.temperature = temperature
+        self.bose = bose
+        self.negative_e = negative_e
+        self.conversion_mat = conversion_mat
+        self.chunk = chunk
+        self.lim = lim
+        self.scattering_lengths = scattering_lengths
+        self.verbose = verbose
+        self.weights = weights
+        self.asr = asr
+        self.dipole = dipole
+        self.dipole_parameter = dipole_parameter
+        self.splitting = splitting
+        self.insert_gamma = insert_gamma
+        self.reduce_qpts = reduce_qpts
+        self.use_c = use_c
+        self.n_threads = n_threads
+        self.eta_scale = eta_scale
 
     def _calculate_sf(self, qpts):
         if self.temperature > 0:
