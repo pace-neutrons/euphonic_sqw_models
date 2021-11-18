@@ -39,7 +39,7 @@ class CoherentCrystal(object):
         This is computed and set internally by the class when the
         computation requests it (debye_waller_grid is set and
         temperature is non-zero)
-    temperature : float Quantity (default: 0 K)
+    temperature : float or float Quantity (default: 0 K)
         Temperature at which to calculate phonons (used for Bose and
         Debye-Waller factor calculations)
     bose : bool (default: True)
@@ -58,9 +58,10 @@ class CoherentCrystal(object):
         A cut-off for the calculated structure factor where values
         above `lim` are set equal to it
     scattering_lengths : dict or string (default: 'Sears1992')
-        The scattering lengths to use for the phonon
-        calculations either as a dictionary with elements as keys or a
-        string denoting a database (internal or from a file)
+        The scattering lengths to use for the phonon calculations
+        either as a dictionary with elements as keys and floats
+        (in fm) or Quantities as values, or a string denoting a
+        database (internal or from a file)
     verbose : bool (default: True)
         Whether to print information on calculation progress
     asr : str or None (default: None)
@@ -88,13 +89,14 @@ class CoherentCrystal(object):
             force_constants: ForceConstants,
             debye_waller_grid: Optional[Tuple[int, int, int]] = None,
             debye_waller: Optional[DebyeWaller] = None,
-            temperature: Quantity = 0*ureg('K'),
+            temperature: Union[float, Quantity] = 0*ureg('K'),
             bose: bool = True,
             negative_e: bool = False,
             conversion_mat: Optional[np.ndarray] = None,
             chunk: int = 5000,
             lim: float = np.inf,
-            scattering_lengths: Union[str, Dict[str, Quantity]] = 'Sears1992',
+            scattering_lengths: Union[
+                str, Dict[str, Union[Quantity, float]]] = 'Sears1992',
             verbose: bool = True,
             weights: Optional[np.ndarray] = None,
             asr: Optional[str] = None,
@@ -137,8 +139,9 @@ class CoherentCrystal(object):
             A cut-off for the calculated structure factor where values
             above `lim` are set equal to it
         scattering_lengths
-            The scattering lengths (in femtometres) to use for the phonon
-            calculations either as a dictionary with elements as keys or a
+            The scattering lengths to use for the phonon
+            calculations either as a dictionary with elements as keys and
+            floats (in fm) or Quantities as values, or a
             string denoting a database (internal or from a file)
         verbose
             Whether to print information on calculation progress
@@ -184,13 +187,16 @@ class CoherentCrystal(object):
         self.n_threads = n_threads
         self.eta_scale = eta_scale
 
-    def _calculate_sf(self, qpts):
+    def _calculate_sf(self, qpts: np.ndarray
+                      ) -> Tuple[np.ndarray, np.ndarray]:
         if self.temperature > 0:
-            if self.debye_waller is None and self.debye_waller_grid is not None:
+            if (self.debye_waller is None
+                and self.debye_waller_grid is not None):
                 self._calculate_debye_waller()
         phonons = self._calculate_phonon_modes(qpts)
-        sf_obj = phonons.calculate_structure_factor(scattering_lengths=self.scattering_lengths,
-                                                    dw=self.debye_waller)
+        sf_obj = phonons.calculate_structure_factor(
+            scattering_lengths=self.scattering_lengths,
+            dw=self.debye_waller)
         w = sf_obj.frequencies.magnitude
         sf = sf_obj.structure_factors.magnitude
         if self.temperature > 0 and self.bose:
@@ -204,30 +210,43 @@ class CoherentCrystal(object):
             sf = np.hstack((sf, neg_sf))
         return w, sf
         
-    def horace_disp(self, qh, qk, ql, intensity_scale=1.0, frequency_scale=1.0, *args, **kwargs):
+    def horace_disp(self, qh: np.ndarray, qk: np.ndarray, ql: np.ndarray,
+                    intensity_scale: float = 1.0,
+                    frequency_scale: float = 1.0,
+                    *args, **kwargs) -> Tuple[Tuple[np.ndarray, ...],
+                                              Tuple[np.ndarray, ...]]:
         """
-        Calculates the phonon dispersion surface for input qh, qk, and ql vectors for use with Horace
+        Calculates the phonon dispersion surface for input qh, qk, and
+        ql vectors for use with Horace
  
         Parameters
         ----------
-        qh, qk, ql : (n_pts,) float ndarray
-            The q-points to calculate at as separate vectors
-        intensity_scale : float
+        qh
+            The q-points in H to calculate
+        qk
+            The q-points in K to calculate
+        ql
+            The q-points in L to calculate
+        intensity_scale
             The factor to multiply the intensity by
-        frequency_scale : float
+        frequency_scale
                 The factor to multiply the phonon frequencies
-                by, as DFT can often overestimate frequencies
-        args: tuple
+                by, as DFT can often over/underestimate frequencies
+        args
             Arguments passed directly to the convolution function
-        kwargs : dict
-            Keyword arguments passed directly to the convolution function
+        kwargs
+            Keyword arguments passed directly to the convolution
+            function
 
         Returns
         -------
-        w : (n_modes,) tuple of (n_pts,) float ndarray
-            The phonon dispersion energies as a tuple of numpy float vectors
-        sf : (n_modes,) tuple of (n_pts,) float ndarray
-            The dynamical structure corresponding to phonon energies in w as a tuple of numpy float vectors
+        w
+            Length (n_qpts,) tuple of length (n_modes,) float ndarrays.
+            The phonon dispersion energies
+        sf
+            Length (n_qpts,) tuple of length (n_modes,) float ndarrays.
+            The dynamical structure corresponding to phonon energies in
+            w
         """
         if self.chunk > 0:
             lqh = len(qh)
@@ -235,8 +254,11 @@ class CoherentCrystal(object):
                 qi = i * self.chunk
                 qf = min((i+1) * self.chunk, lqh)
                 if self.verbose:
-                    print(f'Using Euphonic to interpolate for q-points {qi}:{qf} out of {lqh}')
-                qpts = np.vstack((np.squeeze(qh[qi:qf]), np.squeeze(qk[qi:qf]), np.squeeze(ql[qi:qf]))).T
+                    print(f'Using Euphonic to interpolate for q-points '
+                          f'{qi}:{qf} out of {lqh}')
+                qpts = np.vstack((np.squeeze(qh[qi:qf]),
+                                  np.squeeze(qk[qi:qf]),
+                                  np.squeeze(ql[qi:qf]))).T
                 if self.conversion_mat is not None:
                     qpts = np.matmul(qpts, self.conversion_mat)
                 sqw = self._calculate_sf(qpts)
@@ -247,7 +269,9 @@ class CoherentCrystal(object):
                     w = np.vstack((w, sqw[0]))
                     sf = np.vstack((sf, sqw[1]))
         else:
-            qpts = np.vstack((np.squeeze(qh), np.squeeze(qk), np.squeeze(ql))).T
+            qpts = np.vstack((np.squeeze(qh),
+                              np.squeeze(qk),
+                              np.squeeze(ql))).T
             if self.conversion_mat is not None:
                 qpts = np.matmul(qpts, self.conversion_mat)
             w, sf = self._calculate_sf(qpts)
@@ -256,37 +280,46 @@ class CoherentCrystal(object):
         if intensity_scale != 1.:
             sf *= intensity_scale
         sf = np.minimum(sf, self.lim)
-        # Splits into different dispersion surfaces (python tuple == matlab cell)
-        # But the data must be contiguous in memory so we need to do a real tranpose (.T just changes strides)
-        # So we need to convert to "fortran" format (which physically transposes data) before doing ".T"
+        # Splits into different dispersion surfaces
+        # (python tuple == matlab cell)
+        # But the data must be contiguous in memory so we need to do a
+        # real tranpose (.T just changes strides)
+        # So we need to convert to "fortran" format (which physically
+        # transposes data) before doing ".T"
         w = np.asfortranarray(w).T
         sf = np.asfortranarray(sf).T
         return tuple(w), tuple(sf)
 
-    def _calculate_phonon_modes(self, qpts):
+    def _calculate_phonon_modes(self, qpts: np.ndarray
+                                ) -> QpointPhononModes:
         if self.force_constants is None:
             raise RuntimeError('Force constants model not set')
-        return self.force_constants.calculate_qpoint_phonon_modes(qpts,
-            weights=self.weights, asr=self.asr, dipole=self.dipole, dipole_parameter=self.dipole_parameter,
-            eta_scale=self.eta_scale, splitting=self.splitting, insert_gamma=self.insert_gamma,
-            reduce_qpts=self.reduce_qpts, use_c=self.use_c, n_threads=self.n_threads)
+        return self.force_constants.calculate_qpoint_phonon_modes(
+            qpts, weights=self.weights, asr=self.asr, dipole=self.dipole,
+            dipole_parameter=self.dipole_parameter, eta_scale=self.eta_scale,
+            splitting=self.splitting, insert_gamma=self.insert_gamma,
+            reduce_qpts=self.reduce_qpts, use_c=self.use_c,
+            n_threads=self.n_threads)
 
-    def _calculate_debye_waller(self):
+    def _calculate_debye_waller(self) -> None:
         if self.temperature <= 0.0:
             return
         if self.debye_waller_grid is None:
-            raise RuntimeError('Q-points grid for Debye Waller calculation not set')
+            raise RuntimeError(
+                'Q-points grid for Debye Waller calculation not set')
         dw_qpts = mp_grid(self.debye_waller_grid)
         dw_phonons = self._calculate_phonon_modes(dw_qpts)
-        self.debye_waller = dw_phonons.calculate_debye_waller(self.temperature)
+        self.debye_waller = dw_phonons.calculate_debye_waller(
+            self.temperature)
 
     @property
-    def force_constants(self):
+    def force_constants(self) -> Union[ForceConstants, None]:
         return self._force_constants
 
     @force_constants.setter
-    def force_constants(self, val):
-        if val is None or val == 'None':  # Using string 'None' to make it easier for Matlab users
+    def force_constants(self, val: Union[ForceConstants, None, str]) -> None:
+        # Using string 'None' to make it easier for Matlab users
+        if val is None or val == 'None':
             self._force_constants = None
         else:
             if hasattr(val, 'calculate_qpoint_phonon_modes'):
@@ -295,11 +328,11 @@ class CoherentCrystal(object):
                 raise ValueError('Invalid force constant model')
 
     @property
-    def debye_waller(self):
+    def debye_waller(self) -> Union[DebyeWaller, None]:
         return self._debye_waller 
 
     @debye_waller.setter
-    def debye_waller(self, val):
+    def debye_waller(self, val: Union[DebyeWaller, None, str]) -> None:
         if val is None or val == 'None':
             self._debye_waller = None
         else:
@@ -309,28 +342,29 @@ class CoherentCrystal(object):
                 raise ValueError('Invalid Debye-Waller object')
 
     @property
-    def debye_waller_grid(self):
+    def debye_waller_grid(self) -> Union[Tuple[int, int, int], None]:
         return self._debye_waller_grid
 
     @debye_waller_grid.setter
-    def debye_waller_grid(self, val):
+    def debye_waller_grid(self, val: Union[Tuple[int, int, int], None, str]
+                          ) -> None:
         if val is None or val == 'None':
             self._debye_waller_grid = None
         else:
-            val = np.squeeze(np.array(val))
+            val = tuple(np.squeeze(np.array(val)))
             if np.shape(val) == (3, ):
-                self._debye_waller_grid = [int(v) for v in val]
+                self._debye_waller_grid = tuple([int(v) for v in val])
                 # Reset the Debye Waller factor if it was previously set.
                 self.debye_waller = None
             else:
                 raise ValueError('Invalid Debye-Waller grid')
 
     @property
-    def conversion_mat(self):
+    def conversion_mat(self) -> Union[np.ndarray, None]:
         return self._conversion_mat
 
     @conversion_mat.setter
-    def conversion_mat(self, val):
+    def conversion_mat(self, val: Union[np.ndarray, None, str]) -> None:
         if val is None or (isinstance(val, str) and val.startswith('None')):
             self._conversion_mat = None
         else:
@@ -341,31 +375,34 @@ class CoherentCrystal(object):
                 raise ValueError('Invalid conversion matrix')
 
     @property
-    def temperature(self):
+    def temperature(self) -> Quantity:
         return self._temperature
 
     @temperature.setter
-    def temperature(self, val):
-        self._temperature = val if hasattr(val, 'units') else (val * ureg('K'))
+    def temperature(self, val: Union[Quantity, float]) -> None:
+        self._temperature = val if hasattr(
+            val, 'units') else (val * ureg('K'))
 
     @property
-    def scattering_lengths(self):
+    def scattering_lengths(self) -> Union[str, Dict[str, Quantity]]:
         return self._scattering_lengths
 
     @scattering_lengths.setter
-    def scattering_lengths(self, val):
+    def scattering_lengths(
+            self, val: Union[str, Dict[str, Union[float, Quantity]]]) -> None:
         if isinstance(val, str):
             self._scattering_lengths = val
         elif isinstance(val, dict):
             self._scattering_lengths = \
-                {ky: (v if hasattr(v, 'units') else v * ureg('fm')) for ky, v in val.items()}
+                {ky: (v if hasattr(v, 'units') else v * ureg('fm'))
+                     for ky, v in val.items()}
         else:
             raise ValueError('Invalid scattering lengths')
 
     @property
-    def chunk(self):
+    def chunk(self) -> int:
         return self._chunk
 
     @chunk.setter
-    def chunk(self, val):
+    def chunk(self, val: int) -> None:
         self._chunk = int(val)
