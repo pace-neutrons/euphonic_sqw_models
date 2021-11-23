@@ -63,6 +63,10 @@ def get_test_opts():
     return opts
 
 
+def get_expected_output_dir():
+    return 'expected_output'
+
+
 def get_expected_output_filename(material_name, opts):
     fname = f"{material_name}"
     if hasattr(opts.get('temperature'), 'units'):
@@ -88,7 +92,7 @@ def get_expected_output_filename(material_name, opts):
         fname += '_lim' + strlim
     fname = fname.replace('.', 'p').replace('-', 'm')
     fname += '.mat'
-    return get_abspath(fname, 'expected_output');
+    return get_abspath(fname, get_expected_output_dir());
 
 
 def sum_degenerate_modes(w, sf):
@@ -128,8 +132,14 @@ def calculate_w_sf(material_opts, material_constructor, opt_dict,
 
 def get_expected_w_sf(fname, sum_sf=True):
     ref_dat = scipy.io.loadmat(fname)
-    expected_w = np.concatenate(ref_dat['expected_w'][0], axis=1)
-    expected_sf = np.concatenate(ref_dat['expected_sf'][0], axis=1)
+    # Was written from Matlab - convert first
+    if ref_dat['expected_w'].dtype == object:
+        expected_w = np.concatenate(ref_dat['expected_w'][0], axis=1)
+        expected_sf = np.concatenate(ref_dat['expected_sf'][0], axis=1)
+    else:
+    # Was written from Python - use as is
+        expected_w = ref_dat['expected_w']
+        expected_sf = ref_dat['expected_sf']
     # Set acoustic structure factors to zero
     expected_sf[:,:3] = 0
     if 'negative_e' in fname:
@@ -162,8 +172,19 @@ def test_euphonic_sqw_models(material, opt_dict, run_opts):
     npt.assert_allclose(sf, expected_sf, rtol=1e-2, atol=1e-2)
 
 
-@pytest.mark.parametrize("material", materials)
-@pytest.mark.parametrize("opt_dict", [{
+@pytest.mark.parametrize('material', materials)
+def test_euphonic_sqw_models_defaults(material):
+    material_name, material_constructor, material_opts = material
+    w, sf = calculate_w_sf(material_opts, material_constructor, {})
+    expected_w, expected_sf = get_expected_w_sf(
+        get_abspath(f'{material_name}_defaults.mat',
+                    get_expected_output_dir()))
+    npt.assert_allclose(w, expected_w, rtol=1e-5, atol=1e-2)
+    npt.assert_allclose(sf, expected_sf, rtol=1e-2, atol=1e-2)
+
+
+@pytest.mark.parametrize('material', materials)
+@pytest.mark.parametrize('opt_dict', [{
     'temperature': 300,
     'debye_waller_grid': [6, 6, 6],
     'negative_e': True,
