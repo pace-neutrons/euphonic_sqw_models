@@ -68,13 +68,14 @@ def get_expected_output_dir():
 
 
 def get_expected_output_filename(material_name, opts):
-    fname = f"{material_name}"
-    if hasattr(opts.get('temperature'), 'units'):
-        fname += f"_T{opts['temperature'].magnitude}"
-    else:
-        fname += f"_T{opts['temperature']}"
+    fname = f'{material_name}'
+    if opts.get('temperature', None) is not None:
+        if hasattr(opts.get('temperature'), 'units'):
+            fname += f'_T{opts["temperature"].magnitude}'
+        else:
+            fname += f'_T{opts["temperature"]}'
     if opts.get('debye_waller_grid', None) is not None:
-        fname += "_dw" + "".join([str(v) for v in opts['debye_waller_grid']])
+        fname += '_dw' + ''.join([str(v) for v in opts['debye_waller_grid']])
     if opts.get('bose', None) is not None:
         fname += '_bose' + str(opts['bose']).lower()
     if opts.get('negative_e', None) is not None:
@@ -149,10 +150,11 @@ def get_expected_w_sf(fname, sum_sf=True):
         expected_sf = sum_degenerate_modes(expected_w, expected_sf)
     return expected_w, expected_sf
 
-@pytest.mark.parametrize("material", materials)
-@pytest.mark.parametrize("opt_dict", get_test_opts())
+
+@pytest.mark.parametrize('material', materials)
+@pytest.mark.parametrize('opt_dict', get_test_opts())
 # The following options shouldn't change the result
-@pytest.mark.parametrize("run_opts", [
+@pytest.mark.parametrize('run_opts', [
     {'use_c': False, 'n_threads': 1, 'chunk': 5, 'dipole_parameter': 0.75,
      'scattering_lengths': scattering_lengths},
     {'use_c': True, 'n_threads': 1, 'chunk': 0,
@@ -171,7 +173,6 @@ def test_euphonic_sqw_models(material, opt_dict, run_opts):
     npt.assert_allclose(w, expected_w, rtol=1e-5, atol=1e-2)
     npt.assert_allclose(sf, expected_sf, rtol=1e-2, atol=1e-2)
 
-
 @pytest.mark.parametrize('material', materials)
 def test_euphonic_sqw_models_defaults(material):
     material_name, material_constructor, material_opts = material
@@ -179,6 +180,26 @@ def test_euphonic_sqw_models_defaults(material):
     expected_w, expected_sf = get_expected_w_sf(
         get_abspath(f'{material_name}_defaults.mat',
                     get_expected_output_dir()))
+    npt.assert_allclose(w, expected_w, rtol=1e-5, atol=1e-2)
+    npt.assert_allclose(sf, expected_sf, rtol=1e-2, atol=1e-2)
+
+
+@pytest.mark.parametrize('material', materials)
+@pytest.mark.parametrize('temperature', [None, 0*ureg('K')])
+@pytest.mark.parametrize('opt_dict', [{
+    'debye_waller_grid': [6, 6, 6],
+    'negative_e': True,
+    'conversion_mat': (1./2)*np.array([[-1, 1, 1],
+                                       [1, -1, 1],
+                                       [1, 1, -1]])}])
+def test_euphonic_sqw_models_temperatures(
+        material, opt_dict, temperature):
+    material_name, material_constructor, material_opts = material
+    opt_dict.update({'temperature': temperature})
+    w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict)
+    expected_w, expected_sf = get_expected_w_sf(
+        get_expected_output_filename(
+            material_name, opt_dict))
     npt.assert_allclose(w, expected_w, rtol=1e-5, atol=1e-2)
     npt.assert_allclose(sf, expected_sf, rtol=1e-2, atol=1e-2)
 
@@ -194,7 +215,7 @@ def test_euphonic_sqw_models_defaults(material):
 # Test a combination of keyword and positional arguments
 # Is required for use with pace-python (Toby/Multifit
 # allow positional only for fitting parameters)
-@pytest.mark.parametrize("iscale, freqscale, args, kwargs",
+@pytest.mark.parametrize('iscale, freqscale, args, kwargs',
         [(1.0, 1.3, (), {'frequency_scale': 1.3}),
          (1e-4, 1.0, (1e-4,), {}),
          (1.5e3, 0.4, (1.5e3, 0.4), {}),
@@ -219,7 +240,7 @@ def test_euphonic_sqw_models_pars(
                         rtol=1e-2, atol=1e-2*iscale)
 
 
-@pytest.mark.parametrize("opt_dict", [{
+@pytest.mark.parametrize('opt_dict', [{
     'temperature': 300*ureg('K'),
     'debye_waller_grid': [6, 6, 6],
     'negative_e': True,
@@ -262,8 +283,8 @@ def test_old_behaviour_single_parameter_sets_intensity_scale(opt_dict):
 
 # Units of sf have changed, test the calculated and old expected
 # values are the same apart from a scale factor
-@pytest.mark.parametrize("material", materials)
-@pytest.mark.parametrize("opt_dict", [{
+@pytest.mark.parametrize('material', materials)
+@pytest.mark.parametrize('opt_dict', [{
     'temperature': 300,
     'debye_waller_grid': [6, 6, 6],
     'negative_e': True,
@@ -293,9 +314,10 @@ def test_invalid_fcs_raises_value_error():
     with pytest.raises(ValueError):
         coherent_sqw = euphonic_sqw_models.CoherentCrystal(None)
 
-@pytest.mark.parametrize("kwarg", [{'debye_waller': np.random.rand(5, 3, 3)},
+@pytest.mark.parametrize('kwarg', [{'debye_waller': np.random.rand(5, 3, 3)},
                                    {'debye_waller_grid': [2, 3]},
-                                   {'conversion_mat': np.random.rand(2, 3)}])
+                                   {'conversion_mat': np.random.rand(2, 3)},
+                                   {'temperature': -5*ureg('K')}])
 def test_invalid_kwargs_raises_value_error(kwarg):
     fc = euphonic.ForceConstants.from_castep(
         get_abspath('quartz.castep_bin', 'input'))

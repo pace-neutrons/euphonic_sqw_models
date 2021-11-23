@@ -39,9 +39,10 @@ class CoherentCrystal(object):
         This is computed and set internally by the class when the
         computation requests it (debye_waller_grid is set and
         temperature is non-zero)
-    temperature : float or float Quantity (default: 0 K)
+    temperature : float, float Quantity or None (default: None)
         Temperature at which to calculate phonons (used for Bose and
-        Debye-Waller factor calculations)
+        Debye-Waller factor calculations). If None no temperature
+        dependent effects will be applied
     bose : bool (default: True)
         Whether to include the Bose temperature factor in the
         calculated structure factor
@@ -75,7 +76,7 @@ class CoherentCrystal(object):
             force_constants: ForceConstants,
             debye_waller_grid: Optional[Tuple[int, int, int]] = None,
             debye_waller: Optional[DebyeWaller] = None,
-            temperature: Union[float, Quantity] = 0*ureg('K'),
+            temperature: Union[float, Quantity, None] = None,
             bose: bool = True,
             negative_e: bool = False,
             conversion_mat: Optional[np.ndarray] = None,
@@ -92,14 +93,16 @@ class CoherentCrystal(object):
             The force constants
         debye_waller_grid
             The Monkhorst-Pack q-point grid size to use for the
-            Debye-Waller calculation
+            Debye-Waller calculation. If None the Debye-Waller
+            calculation is not performed.
         debye_waller
             This is computed and set internally by the class when the
             computation requests it (debye_waller_grid is set and
-            temperature is non-zero)
+            temperature is not None)
         temperature
             Temperature at which to calculate phonons (used for Bose and
-            Debye-Waller factor calculations)
+            Debye-Waller factor calculations). If None no
+            temperature-dependent effects will be applied
         bose
             Whether to include the Bose temperature factor in the
             calculated structure factor
@@ -143,7 +146,7 @@ class CoherentCrystal(object):
 
     def _calculate_sf(self, qpts: np.ndarray
                       ) -> Tuple[np.ndarray, np.ndarray]:
-        if self.temperature > 0:
+        if self.temperature is not None:
             if (self.debye_waller is None
                 and self.debye_waller_grid is not None):
                 self._calculate_debye_waller()
@@ -153,13 +156,13 @@ class CoherentCrystal(object):
             dw=self.debye_waller)
         w = sf_obj.frequencies.magnitude
         sf = sf_obj.structure_factors.magnitude
-        if self.temperature > 0 and self.bose:
+        if self.temperature is not None and self.bose:
             bose = sf_obj._bose_factor(self.temperature)
             sf = (1 + bose) * sf
         if self.negative_e:
             w = np.hstack((w, -w))
             neg_sf = sf_obj.structure_factors.magnitude
-            if self.temperature > 0 and self.bose:
+            if self.temperature is not None and self.bose:
                 neg_sf = bose * neg_sf
             sf = np.hstack((sf, neg_sf))
         return w, sf
@@ -250,8 +253,6 @@ class CoherentCrystal(object):
             qpts, **self.calc_modes_kwargs)
 
     def _calculate_debye_waller(self) -> None:
-        if self.temperature <= 0.0:
-            return
         if self.debye_waller_grid is None:
             raise RuntimeError(
                 'Q-points grid for Debye Waller calculation not set')
@@ -319,13 +320,20 @@ class CoherentCrystal(object):
                 raise ValueError('Invalid conversion matrix')
 
     @property
-    def temperature(self) -> Quantity:
+    def temperature(self) -> Union[Quantity, None]:
         return self._temperature
 
     @temperature.setter
-    def temperature(self, val: Union[Quantity, float]) -> None:
-        self._temperature = val if hasattr(
-            val, 'units') else (val * ureg('K'))
+    def temperature(self, val: Union[Quantity, float, None]) -> None:
+        if val is None or val == 'None':
+            self._temperature = None
+        else:
+            if isinstance(val, (float, int)):
+                val = val*ureg('K')
+            if hasattr(val, 'units') and val >= 0*ureg('K'):
+                self._temperature = val
+            else:
+                raise ValueError('Invalid temperature')
 
     @property
     def scattering_lengths(self) -> Union[str, Dict[str, Quantity]]:
