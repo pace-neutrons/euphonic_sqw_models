@@ -168,9 +168,9 @@ class CoherentCrystal(object):
 
     def horace_disp(self, qh: np.ndarray, qk: np.ndarray, ql: np.ndarray,
                     intensity_scale: float = 1.0,
-                    frequency_scale: float = 1.0,
-                    *args, **kwargs) -> Tuple[Tuple[np.ndarray, ...],
-                                              Tuple[np.ndarray, ...]]:
+                    frequency_scale: float = 1.0
+                    ) -> Tuple[Tuple[np.ndarray, ...],
+                               Tuple[np.ndarray, ...]]:
         """
         Calculates the phonon dispersion surface for input qh, qk, and
         ql vectors for use with Horace
@@ -188,11 +188,6 @@ class CoherentCrystal(object):
         frequency_scale
                 The factor to multiply the phonon frequencies
                 by, as DFT can often over/underestimate frequencies
-        args
-            Arguments passed directly to the convolution function
-        kwargs
-            Keyword arguments passed directly to the convolution
-            function
 
         Returns
         -------
