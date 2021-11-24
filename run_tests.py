@@ -19,7 +19,7 @@ if __name__ == "__main__":
     pytest_options = [args_parsed.test_file]
     if args_parsed.report:
         pytest_options.append('--junitxml=report.xml')
-    
+
     if args_parsed.coverage:
         cov = coverage.Coverage(source=['euphonic_sqw_models'], omit=['*/_version.py'])
         cov.start()

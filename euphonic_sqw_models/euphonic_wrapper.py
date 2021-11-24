@@ -1,10 +1,9 @@
-import os
 import warnings
 from typing import Optional, Dict, Union, Tuple
 
 import numpy as np
 
-from euphonic import (Crystal, ForceConstants, QpointPhononModes, DebyeWaller,
+from euphonic import (ForceConstants, QpointPhononModes, DebyeWaller,
                       Quantity, ureg)
 from euphonic.util import mp_grid
 
@@ -66,7 +65,7 @@ class CoherentCrystal(object):
     verbose : bool (default: True)
         Whether to print information on calculation progress
     **calc_modes_kwargs
-        Any other keyword arguments (.e.g asr, n_threads) will be
+        Any other keyword arguments (e.g asr, n_threads) will be
         passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes.
         See the available arguments with
         help(euphonic.ForceConstants.calculate_qpoint_phonon_modes)
@@ -126,7 +125,7 @@ class CoherentCrystal(object):
         verbose
             Whether to print information on calculation progress
         **calc_modes_kwargs
-            Any other keyword arguments (.e.g asr, n_threads) will be
+            Any other keyword arguments (e.g asr, n_threads) will be
             passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes.
             See the available arguments with
             help(euphonic.ForceConstants.calculate_qpoint_phonon_modes)
@@ -166,7 +165,7 @@ class CoherentCrystal(object):
                 neg_sf = bose * neg_sf
             sf = np.hstack((sf, neg_sf))
         return w, sf
-        
+
     def horace_disp(self, qh: np.ndarray, qk: np.ndarray, ql: np.ndarray,
                     intensity_scale: float = 1.0,
                     frequency_scale: float = 1.0,
@@ -175,7 +174,7 @@ class CoherentCrystal(object):
         """
         Calculates the phonon dispersion surface for input qh, qk, and
         ql vectors for use with Horace
- 
+
         Parameters
         ----------
         qh
@@ -274,7 +273,7 @@ class CoherentCrystal(object):
 
     @property
     def debye_waller(self) -> Union[DebyeWaller, None]:
-        return self._debye_waller 
+        return self._debye_waller
 
     @debye_waller.setter
     def debye_waller(self, val: Union[DebyeWaller, None, str]) -> None:

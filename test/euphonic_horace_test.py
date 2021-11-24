@@ -99,7 +99,6 @@ def get_expected_output_filename(material_name, opts):
 def sum_degenerate_modes(w, sf):
     tol = 0.1;
     rows, cols = np.shape(w);
-    diff = np.zeros(cols-1);
     summed_sf = np.zeros(np.shape(sf));
     for i in range(rows):
         sum_at = np.where(np.diff(w[i,:]) > tol)[0];
@@ -312,7 +311,7 @@ def test_sf_unit_change(material, opt_dict):
 
 def test_invalid_fcs_raises_value_error():
     with pytest.raises(ValueError):
-        coherent_sqw = euphonic_sqw_models.CoherentCrystal(None)
+        euphonic_sqw_models.CoherentCrystal(None)
 
 @pytest.mark.parametrize('kwarg', [{'debye_waller': np.random.rand(5, 3, 3)},
                                    {'debye_waller_grid': [2, 3]},
@@ -322,5 +321,5 @@ def test_invalid_kwargs_raises_value_error(kwarg):
     fc = euphonic.ForceConstants.from_castep(
         get_abspath('quartz.castep_bin', 'input'))
     with pytest.raises(ValueError):
-        coherent_sqw = euphonic_sqw_models.CoherentCrystal(fc, **kwarg)
+        euphonic_sqw_models.CoherentCrystal(fc, **kwarg)
 
