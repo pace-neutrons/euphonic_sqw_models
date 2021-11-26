@@ -220,9 +220,10 @@ class CoherentCrystal(object):
                 if self.verbose:
                     print(f'Using Euphonic to interpolate for q-points '
                           f'{qi}:{qf} out of {lqh}')
-                qpts = np.vstack((np.squeeze(qh[qi:qf]),
-                                  np.squeeze(qk[qi:qf]),
-                                  np.squeeze(ql[qi:qf]))).T
+                qpts = np.stack((np.squeeze(qh[qi:qf]),
+                                 np.squeeze(qk[qi:qf]),
+                                 np.squeeze(ql[qi:qf])),
+                                 axis=1)
                 if self.conversion_mat is not None:
                     qpts = np.matmul(qpts, self.conversion_mat)
                 sqw = self._calculate_sf(qpts)
@@ -233,9 +234,10 @@ class CoherentCrystal(object):
                     w = np.vstack((w, sqw[0]))
                     sf = np.vstack((sf, sqw[1]))
         else:
-            qpts = np.vstack((np.squeeze(qh),
-                              np.squeeze(qk),
-                              np.squeeze(ql))).T
+            qpts = np.stack((np.squeeze(qh),
+                             np.squeeze(qk),
+                             np.squeeze(ql)),
+                             axis=1)
             if self.conversion_mat is not None:
                 qpts = np.matmul(qpts, self.conversion_mat)
             w, sf = self._calculate_sf(qpts)
