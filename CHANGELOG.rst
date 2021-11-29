@@ -1,6 +1,12 @@
 `Unreleased <https://github.com/pace-neutrons/euphonic_sqw_models/compare/v0.5.0...HEAD>`_
 ----------
 
+- Bug fixes:
+
+  - Use of temperature=0 will now calculate the 0K Debye-Waller and Bose
+    population factors - previously these temperature dependent effects
+    were not calculated at 0K
+
 `v0.5.0 <https://github.com/pace-neutrons/euphonic_sqw_models/compare/v0.4.0...v0.5.0>`_
 ------
 

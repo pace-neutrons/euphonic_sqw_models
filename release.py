@@ -3,7 +3,6 @@ import json
 import os
 import re
 import requests
-import subprocess
 import warnings
 
 from packaging import version
