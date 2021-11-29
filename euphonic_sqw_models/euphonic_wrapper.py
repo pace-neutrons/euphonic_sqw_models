@@ -37,7 +37,7 @@ class CoherentCrystal(object):
     debye_waller : DebyeWaller object
         This is computed and set internally by the class when the
         computation requests it (debye_waller_grid is set and
-        temperature is non-zero)
+        temperature is not `None`)
     temperature : float, float Quantity or None (default: None)
         Temperature at which to calculate phonons (used for Bose and
         Debye-Waller factor calculations). If None no temperature
