@@ -17,21 +17,14 @@ class CoherentCrystal(object):
     """
     A class to calculate neutron scattering dispersions surfaces for
     use in Horace. It must be constructed from a Euphonic
-    ForceConstants object.
-
-    Methods
-    -------
-    w, sf = horace_disp(qh: np.ndarray, qk: np.ndarray, ql: np.ndarray,
-                        intensity_scale: float = 1.0,
-                        frequency_scale: float = 1.0)
-        Calculates the phonon dispersion surfaces `w` and structure
-        factor `sf` at the specified (qh, qk, ql) points, with optional
-        intensity and frequency scaling factors
+    ForceConstants or euphonic.brille.BrilleInterpolator object.
 
     Attributes
     ----------
-    force_constants : ForceConstants
-        The force constants
+    force_constants : Union[ForceConstants, BrilleInterpolator]
+        An object that has a calculate_qpoint_phonon_modes function
+        that produces a euphonic.QpointPhononModes object. Typically
+        ForceConstants or BrilleInterpolator.
     debye_waller_grid : (3,) float ndarray or None (default: None)
         The Monkhorst-Pack q-point grid size to use for the
         Debye-Waller calculation
@@ -76,7 +69,7 @@ class CoherentCrystal(object):
     """
     def __init__(
             self,
-            force_constants: ForceConstants,
+            force_constants: Union[ForceConstants, 'BrilleInterpolator'],
             debye_waller_grid: Optional[Tuple[int, int, int]] = None,
             debye_waller: Optional[DebyeWaller] = None,
             temperature: Union[float, Quantity, None] = None,
@@ -94,6 +87,9 @@ class CoherentCrystal(object):
         Parameters
         ----------
         force_constants
+            An object that has a calculate_qpoint_phonon_modes function
+            that produces a euphonic.QpointPhononModes object.
+            Typically ForceConstants or BrilleInterpolator.
             The force constants
         debye_waller_grid
             The Monkhorst-Pack q-point grid size to use for the
