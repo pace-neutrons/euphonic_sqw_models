@@ -14,10 +14,12 @@ def get_abspath(filename, sub_dir):
     return test_dir + os.path.sep + sub_dir + os.path.sep + filename
 
 temp = [300]
-materials = [['quartz', euphonic.ForceConstants.from_castep,
-              {'filename': get_abspath('quartz.castep_bin', 'input')}],
-             ['nacl', euphonic.ForceConstants.from_phonopy,
-              {'path': get_abspath('NaCl', 'input')}]]
+quartz = ['quartz', euphonic.ForceConstants.from_castep,
+          {'filename': get_abspath('quartz.castep_bin', 'input')}]
+nacl =  ['nacl', euphonic.ForceConstants.from_phonopy,
+         {'path': get_abspath('NaCl', 'input')}]
+nacl_json =  ['nacl', euphonic.ForceConstants.from_json_file,
+              {'filename': get_abspath('nacl_force_constants.json', 'input')}]
 dw_grid = [None, [6,6,6]]
 bose = [None, False]
 negative_e = [None, True]
@@ -110,6 +112,55 @@ def sum_degenerate_modes(w, sf):
     return summed_sf
 
 
+def check_frequencies_at_qpts(values, expected_values, atol, rtol,
+                              gamma_atol=None):
+    """
+    Utility function for comparing frequencies. At the gamma point
+    they can be near to zero, resulting in a high relative error.
+    Rather than increasing the allowed relative error, just check
+    the gamma-point frequencies are below a certain value.
+
+    Compares all values, but if some don't match sets a tolerance for
+    the gamma-point values (if provided) and tries again.
+
+    Parameters
+    ----------
+    values : (n_qpts, Any) float ndarray
+        Values to test
+    expected_values : (n_qpts, Any) float ndarray
+        What the values should be
+    atol : float
+        Absolute tolerance (is passed to npt.assert_allclose)
+    rtol : float
+        Relative tolerance (is passed to npt.assert_allclose)
+    gamma_atol : float, optional default None
+        Absolute tolerance to test gamma point acoustic mode values
+        against
+    """
+    try:
+        npt.assert_allclose(
+            values,
+            expected_values,
+            atol=atol, rtol=rtol)
+    except AssertionError as e:
+        if gamma_atol is None:
+            raise e
+
+        values_to_test = np.ones(values.shape, dtype=bool)
+
+        gamma_points = (np.sum(np.absolute(qpts - np.rint(qpts)), axis=-1)
+                        < 1e-10)
+        values_to_test[gamma_points, :3] = False
+        assert np.all(np.less(
+            np.absolute(values[~values_to_test]),
+            gamma_atol))
+
+        npt.assert_allclose(
+            values[values_to_test],
+            expected_values[values_to_test],
+            atol=atol, rtol=rtol)
+
+
 def calculate_w_sf(material_opts, material_constructor, opt_dict,
                    sum_sf=True, hdisp_args=(), hdisp_kwargs={}):
     fc = material_constructor(**material_opts)
@@ -150,7 +201,18 @@ def get_expected_w_sf(fname, sum_sf=True):
     return expected_w, expected_sf
 
 
-@pytest.mark.parametrize('material', materials)
+def run_and_test_horace_disp(material, opt_dict, filename=None):
+    material_name, material_constructor, material_opts = material
+    if filename is None:
+        filename = get_expected_output_filename(material_name, opt_dict)
+    expected_w, expected_sf = get_expected_w_sf(filename)
+    w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict)
+    check_frequencies_at_qpts(w, expected_w, atol=1e-2, rtol=1e-5,
+                              gamma_atol=0.03)
+    npt.assert_allclose(sf, expected_sf, rtol=1e-2, atol=1e-2)
+
+
+@pytest.mark.parametrize('material', [quartz])
 @pytest.mark.parametrize('opt_dict', get_test_opts())
 # The following options shouldn't change the result
 @pytest.mark.parametrize('run_opts', [
@@ -160,30 +222,37 @@ def get_expected_w_sf(fname, sum_sf=True):
      'scattering_lengths': scattering_lengths_quantity},
     {'use_c': True, 'n_threads': 2}])
 def test_euphonic_sqw_models(material, opt_dict, run_opts):
-    material_name, material_constructor, material_opts = material
-    expected_w, expected_sf = get_expected_w_sf(
-        get_expected_output_filename(
-            material_name, opt_dict))
-
     opt_dict.update(run_opts)
     # Don't pass None options
     opt_dict = {k: v for k, v in opt_dict.items() if v is not None}
-    w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict)
-    npt.assert_allclose(w, expected_w, rtol=1e-5, atol=1e-2)
-    npt.assert_allclose(sf, expected_sf, rtol=1e-2, atol=1e-2)
+    run_and_test_horace_disp(material, opt_dict)
 
-@pytest.mark.parametrize('material', materials)
+
+@pytest.mark.phonopy_reader
+@pytest.mark.parametrize('material', [nacl])
+@pytest.mark.parametrize('opt_dict', get_test_opts())
+def test_euphonic_sqw_models_phonopy(material, opt_dict):
+    # Don't pass None options
+    opt_dict = {k: v for k, v in opt_dict.items() if v is not None}
+    run_and_test_horace_disp(material, opt_dict)
+
+
+@pytest.mark.parametrize('material', [quartz])
 def test_euphonic_sqw_models_defaults(material):
-    material_name, material_constructor, material_opts = material
-    w, sf = calculate_w_sf(material_opts, material_constructor, {})
-    expected_w, expected_sf = get_expected_w_sf(
-        get_abspath(f'{material_name}_defaults.mat',
-                    get_expected_output_dir()))
-    npt.assert_allclose(w, expected_w, rtol=1e-5, atol=1e-2)
-    npt.assert_allclose(sf, expected_sf, rtol=1e-2, atol=1e-2)
+    filename = get_abspath(f'{material[0]}_defaults.mat',
+                           get_expected_output_dir())
+    run_and_test_horace_disp(material, {}, filename=filename)
 
 
-@pytest.mark.parametrize('material', materials)
+@pytest.mark.phonopy_reader
+@pytest.mark.parametrize('material', [nacl])
+def test_euphonic_sqw_models_defaults_phonopy(material):
+    filename = get_abspath(f'{material[0]}_defaults.mat',
+                           get_expected_output_dir())
+    run_and_test_horace_disp(material, {}, filename=filename)
+
+
+@pytest.mark.parametrize('material', [quartz])
 @pytest.mark.parametrize('temperature', [None, 0*ureg('K')])
 @pytest.mark.parametrize('opt_dict', [{
     'debye_waller_grid': [6, 6, 6],
@@ -193,17 +262,26 @@ def test_euphonic_sqw_models_defaults(material):
                                        [1, 1, -1]])}])
 def test_euphonic_sqw_models_temperatures(
         material, opt_dict, temperature):
-    material_name, material_constructor, material_opts = material
     opt_dict.update({'temperature': temperature})
-    w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict)
-    expected_w, expected_sf = get_expected_w_sf(
-        get_expected_output_filename(
-            material_name, opt_dict))
-    npt.assert_allclose(w, expected_w, rtol=1e-5, atol=1e-2)
-    npt.assert_allclose(sf, expected_sf, rtol=1e-2, atol=1e-2)
+    run_and_test_horace_disp(material, opt_dict)
 
 
-@pytest.mark.parametrize('material', materials)
+@pytest.mark.phonopy_reader
+@pytest.mark.parametrize('material', [nacl])
+@pytest.mark.parametrize('temperature', [None, 0*ureg('K')])
+@pytest.mark.parametrize('opt_dict', [{
+    'debye_waller_grid': [6, 6, 6],
+    'negative_e': True,
+    'conversion_mat': (1./2)*np.array([[-1, 1, 1],
+                                       [1, -1, 1],
+                                       [1, 1, -1]])}])
+def test_euphonic_sqw_models_temperatures_phonopy_reader(
+        material, opt_dict, temperature):
+    opt_dict.update({'temperature': temperature})
+    run_and_test_horace_disp(material, opt_dict)
+
+
+@pytest.mark.parametrize('material', [quartz, nacl_json])
 @pytest.mark.parametrize('opt_dict', [{
     'temperature': 300,
     'debye_waller_grid': [6, 6, 6],
@@ -234,7 +312,8 @@ def test_euphonic_sqw_models_pars(
     sf_summed = sum_degenerate_modes(expected_w, sf)
     expected_sf_summed = sum_degenerate_modes(expected_w, expected_sf)
     # Check that pars have scaled w and sf as expected
-    npt.assert_allclose(w, freqscale*expected_w, rtol=1e-5, atol=1e-2*freqscale)
+    check_frequencies_at_qpts(w, expected_w*freqscale, atol=1e-2*freqscale,
+                              rtol=1e-5, gamma_atol=0.03*freqscale)
     npt.assert_allclose(sf_summed, iscale*expected_sf_summed,
                         rtol=1e-2, atol=1e-2*iscale)
 
@@ -248,7 +327,7 @@ def test_euphonic_sqw_models_pars(
                                        [1, 1, -1]])}])
 def test_old_behaviour_single_parameter_sets_intensity_scale(opt_dict):
     iscale = 1.5
-    material_name, material_constructor, material_opts = materials[0]
+    material_name, material_constructor, material_opts = quartz
     fc = material_constructor(**material_opts)
     opt_dict['asr'] = 'reciprocal'
     opt_dict['scattering_lengths'] = scattering_lengths
@@ -275,14 +354,15 @@ def test_old_behaviour_single_parameter_sets_intensity_scale(opt_dict):
     sf_summed = sum_degenerate_modes(expected_w, sf)
     expected_sf_summed = sum_degenerate_modes(expected_w, expected_sf)
     # Check that pars have scaled w and sf as expected
-    npt.assert_allclose(w, expected_w, rtol=1e-5, atol=1e-2)
+    check_frequencies_at_qpts(w, expected_w, atol=1e-2, rtol=1e-5,
+                              gamma_atol=0.03)
     npt.assert_allclose(sf_summed, iscale*expected_sf_summed,
                         rtol=1e-2, atol=1e-2)
 
 
 # Units of sf have changed, test the calculated and old expected
 # values are the same apart from a scale factor
-@pytest.mark.parametrize('material', materials)
+@pytest.mark.parametrize('material', [quartz, nacl_json])
 @pytest.mark.parametrize('opt_dict', [{
     'temperature': 300,
     'debye_waller_grid': [6, 6, 6],
@@ -300,7 +380,8 @@ def test_sf_unit_change(material, opt_dict):
 
     w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict)
 
-    npt.assert_allclose(w, expected_w, rtol=1e-5, atol=1e-2)
+    check_frequencies_at_qpts(w, expected_w, atol=1e-2, rtol=1e-5,
+                              gamma_atol=0.03)
 
     # Change in units angstrom**2 -> mbarn = 1e11. Change from sf per
     # unit cell to sf per atom = 1/n_atoms. Change from relative to
