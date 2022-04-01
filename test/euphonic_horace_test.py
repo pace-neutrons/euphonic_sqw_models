@@ -112,55 +112,6 @@ def sum_degenerate_modes(w, sf):
     return summed_sf
 
 
-def check_frequencies_at_qpts(values, expected_values, atol, rtol,
-                              gamma_atol=None):
-    """
-    Utility function for comparing frequencies. At the gamma point
-    they can be near to zero, resulting in a high relative error.
-    Rather than increasing the allowed relative error, just check
-    the gamma-point frequencies are below a certain value.
-
-    Compares all values, but if some don't match sets a tolerance for
-    the gamma-point values (if provided) and tries again.
-
-    Parameters
-    ----------
-    values : (n_qpts, Any) float ndarray
-        Values to test
-    expected_values : (n_qpts, Any) float ndarray
-        What the values should be
-    atol : float
-        Absolute tolerance (is passed to npt.assert_allclose)
-    rtol : float
-        Relative tolerance (is passed to npt.assert_allclose)
-    gamma_atol : float, optional default None
-        Absolute tolerance to test gamma point acoustic mode values
-        against
-    """
-    try:
-        npt.assert_allclose(
-            values,
-            expected_values,
-            atol=atol, rtol=rtol)
-    except AssertionError as e:
-        if gamma_atol is None:
-            raise e
-
-        values_to_test = np.ones(values.shape, dtype=bool)
-
-        gamma_points = (np.sum(np.absolute(qpts - np.rint(qpts)), axis=-1)
-                        < 1e-10)
-        values_to_test[gamma_points, :3] = False
-        assert np.all(np.less(
-            np.absolute(values[~values_to_test]),
-            gamma_atol))
-
-        npt.assert_allclose(
-            values[values_to_test],
-            expected_values[values_to_test],
-            atol=atol, rtol=rtol)
-
-
 def calculate_w_sf(material_opts, material_constructor, opt_dict,
                    sum_sf=True, hdisp_args=(), hdisp_kwargs={}):
     fc = material_constructor(**material_opts)
@@ -170,11 +121,16 @@ def calculate_w_sf(material_opts, material_constructor, opt_dict,
         qpts[:,0], qpts[:,1], qpts[:,2], *hdisp_args, **hdisp_kwargs)
     w = np.array(w).T
     sf = np.array(sf).T
+    # Ignore gamma-point frequencies by setting to zero - their
+    # values are unstable
+    gamma_points = (np.sum(np.absolute(qpts - np.rint(qpts)), axis=-1)
+                    < 1e-10)
+    w[gamma_points, :3] = 0.
     # Ignore acoustic structure factors by setting to zero - their
     # values can be unstable at small frequencies
-    n = int(np.shape(sf)[1] / 2)
     sf[:,:3] = 0.
     if 'negative_e' in opt_dict and opt_dict['negative_e']:
+        n = int(np.shape(sf)[1] / 2)
         sf[:,n:(n+3)] = 0
     if sum_sf:
         sf = sum_degenerate_modes(w, sf)
@@ -191,6 +147,10 @@ def get_expected_w_sf(fname, sum_sf=True):
     # Was written from Python - use as is
         expected_w = ref_dat['expected_w']
         expected_sf = ref_dat['expected_sf']
+    # Set gamma-point acoustic frequencies to zero
+    gamma_points = (np.sum(np.absolute(qpts - np.rint(qpts)), axis=-1)
+                    < 1e-10)
+    expected_w[gamma_points, :3] = 0.
     # Set acoustic structure factors to zero
     expected_sf[:,:3] = 0
     if 'negative_e' in fname:
@@ -207,8 +167,7 @@ def run_and_test_horace_disp(material, opt_dict, filename=None):
         filename = get_expected_output_filename(material_name, opt_dict)
     expected_w, expected_sf = get_expected_w_sf(filename)
     w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict)
-    check_frequencies_at_qpts(w, expected_w, atol=1e-2, rtol=1e-5,
-                              gamma_atol=0.03)
+    npt.assert_allclose(w, expected_w, atol=1e-2, rtol=1e-5)
     npt.assert_allclose(sf, expected_sf, rtol=1e-2, atol=1e-2)
 
 
@@ -312,8 +271,8 @@ def test_euphonic_sqw_models_pars(
     sf_summed = sum_degenerate_modes(expected_w, sf)
     expected_sf_summed = sum_degenerate_modes(expected_w, expected_sf)
     # Check that pars have scaled w and sf as expected
-    check_frequencies_at_qpts(w, expected_w*freqscale, atol=1e-2*freqscale,
-                              rtol=1e-5, gamma_atol=0.03*freqscale)
+    npt.assert_allclose(w, expected_w*freqscale, atol=1e-2*freqscale,
+                        rtol=1e-5)
     npt.assert_allclose(sf_summed, iscale*expected_sf_summed,
                         rtol=1e-2, atol=1e-2*iscale)
 
@@ -339,6 +298,11 @@ def test_old_behaviour_single_parameter_sets_intensity_scale(opt_dict):
         qpts[:,0], qpts[:,1], qpts[:,2], [iscale])
     w = np.array(w).T
     sf = np.array(sf).T
+    # Ignore gamma-point frequencies by setting to zero - their
+    # values are unstable
+    gamma_points = (np.sum(np.absolute(qpts - np.rint(qpts)), axis=-1)
+                    < 1e-10)
+    w[gamma_points, :3] = 0.
     # Ignore acoustic structure factors by setting to zero - their
     # values can be unstable at small frequencies
     n = int(np.shape(sf)[1] / 2)
@@ -354,8 +318,7 @@ def test_old_behaviour_single_parameter_sets_intensity_scale(opt_dict):
     sf_summed = sum_degenerate_modes(expected_w, sf)
     expected_sf_summed = sum_degenerate_modes(expected_w, expected_sf)
     # Check that pars have scaled w and sf as expected
-    check_frequencies_at_qpts(w, expected_w, atol=1e-2, rtol=1e-5,
-                              gamma_atol=0.03)
+    npt.assert_allclose(w, expected_w, atol=1e-2, rtol=1e-5)
     npt.assert_allclose(sf_summed, iscale*expected_sf_summed,
                         rtol=1e-2, atol=1e-2)
 
@@ -380,8 +343,7 @@ def test_sf_unit_change(material, opt_dict):
 
     w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict)
 
-    check_frequencies_at_qpts(w, expected_w, atol=1e-2, rtol=1e-5,
-                              gamma_atol=0.03)
+    npt.assert_allclose(w, expected_w, atol=1e-2, rtol=1e-5)
 
     # Change in units angstrom**2 -> mbarn = 1e11. Change from sf per
     # unit cell to sf per atom = 1/n_atoms. Change from relative to
