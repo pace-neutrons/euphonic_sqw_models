@@ -1,6 +1,6 @@
 """
-This script installs test dependencies, and the minimum required
-version of Euphonic via pip for use in testing. If a breaking change
+This script installs test dependencies, and the latest version of
+Euphonic via pip for use in testing. If a breaking change
 has been applied to Euphonic, the min requirements for Euphonic should
 be something like euphonic>0.6.0 (note: no '='), in which case the
 latest specified branch of Euphonic will be cloned, installed and
@@ -20,8 +20,10 @@ def clone_euphonic(branch='master'):
     subprocess.check_call(['git', 'checkout', branch], cwd='Euphonic')
 
 
-def install_requirements(requirements_file=None,
-                         extras=[], branch='master'):
+def install_requirements(requirements_file=None, extras=[],
+                         branch=None, version=None):
+    if branch is not None and version is not None:
+        raise ValueError('Only one of branch or version should be provided')
     if requirements_file is None:
         requirements_file = os.path.join(os.path.dirname(__file__),
                                          'min_requirements.txt')
@@ -29,26 +31,38 @@ def install_requirements(requirements_file=None,
         packages = req.read().strip().split('\n')
     euphonic = [pp for pp in packages if 'euphonic' in pp][0]
     packages.pop(packages.index(euphonic))
-    euphonic_ver = f'>{euphonic.split(">")[-1]}'
-    euphonic_extras = f'[{",".join(extras)}]'
-    try:
-        subprocess.check_call(
-            pipcmd + ['euphonic' + euphonic_extras + euphonic_ver])
-    except subprocess.CalledProcessError:
+    if '>=' not in euphonic and branch is None:
+        # This means we're between versions, or a branch has been provided, clone Euphonic
+        branch = 'master'
+
+    if branch is not None:
         clone_euphonic(branch=branch)
-        subprocess.check_call(pipcmd + ['.' + euphonic_extras],
+        subprocess.check_call(pipcmd + [f'.[{",".join(extras)}]'],
                               cwd='Euphonic')
+    else:
+        if version is None:
+            version_str = ''
+        else:
+            version_str = f'=={version}'
+        subprocess.check_call(
+            pipcmd + ['--upgrade'] + [f'euphonic[{",".join(extras)}]{version_str}'])
     subprocess.check_call(pipcmd + packages)
 
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument(
-        '--branch', default='master',
-        help='The Euphonic branch to clone')
+    euphonic_ver_group = parser.add_mutually_exclusive_group()
+    euphonic_ver_group.add_argument(
+        '--version', default=None,
+        help='The Euphonic version to install, if not provided '
+             'automatically uses most recent release')
+    euphonic_ver_group.add_argument(
+        '--branch', default=None,
+        help='The Euphonic branch to clone, default master')
     parser.add_argument(
         '--extras', nargs='*', default=[],
         help='The Euphonic "extras" to install e.g. phonopy_reader')
     args = parser.parse_args()
 
-    install_requirements(branch=args.branch, extras=args.extras)
+    install_requirements(branch=args.branch, extras=args.extras,
+                         version=args.version)
