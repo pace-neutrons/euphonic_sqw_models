@@ -271,7 +271,7 @@ def test_euphonic_sqw_models_pars(
     sf_summed = sum_degenerate_modes(expected_w, sf)
     expected_sf_summed = sum_degenerate_modes(expected_w, expected_sf)
     # Check that pars have scaled w and sf as expected
-    npt.assert_allclose(w, expected_w*freqscale, atol=1e-2*freqscale,
+    npt.assert_allclose(w, expected_w*freqscale, atol=1.5e-2*freqscale,
                         rtol=1e-5)
     npt.assert_allclose(sf_summed, iscale*expected_sf_summed,
                         rtol=1e-2, atol=1e-2*iscale)
@@ -318,7 +318,7 @@ def test_old_behaviour_single_parameter_sets_intensity_scale(opt_dict):
     sf_summed = sum_degenerate_modes(expected_w, sf)
     expected_sf_summed = sum_degenerate_modes(expected_w, expected_sf)
     # Check that pars have scaled w and sf as expected
-    npt.assert_allclose(w, expected_w, atol=1e-2, rtol=1e-5)
+    npt.assert_allclose(w, expected_w, atol=1.5e-2, rtol=1e-5)
     npt.assert_allclose(sf_summed, iscale*expected_sf_summed,
                         rtol=1e-2, atol=1e-2)
 
@@ -343,7 +343,7 @@ def test_sf_unit_change(material, opt_dict):
 
     w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict)
 
-    npt.assert_allclose(w, expected_w, atol=1e-2, rtol=1e-5)
+    npt.assert_allclose(w, expected_w, atol=1.5e-2, rtol=1e-5)
 
     # Change in units angstrom**2 -> mbarn = 1e11. Change from sf per
     # unit cell to sf per atom = 1/n_atoms. Change from relative to
