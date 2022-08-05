@@ -9,24 +9,34 @@ jobs:
   test:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-2019]
-        python: [3.6]
+        os: [ubuntu-latest, windows-latest]
+        python_version: ['3.10']
+        euphonic_version: ['']
+        # Test lowest supported Python/Euphonic versions
+        include:
+          - os: ubuntu-latest
+            python_version: '3.7'
+            euphonic_version: '--version 0.6.0'
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v1
+      - name: Set up Python
+        uses: conda-incubator/setup-miniconda@v2
         with:
-          python-version: ${{ matrix.python }}
+          python-version: ${{ matrix.python_version }}
       - name: Update pip
+        shell: bash -l {0}
         run: python -m pip install --upgrade pip
       - name: Install basic Euphonic and dependencies and run tests
+        shell: bash -l {0}
         run: |
-          python apply_requirements.py
+          python apply_requirements.py ${{ matrix.euphonic_version }}
           python run_tests.py -m "not phonopy_reader" --coverage "coverage.xml"
       - name: Install Euphonic with phonopy_reader extra and run tests
+        shell: bash -l {0}
         run: |
-          python apply_requirements.py --extras phonopy_reader
+          python apply_requirements.py --extras phonopy_reader ${{ matrix.euphonic_version }}
           python run_tests.py -m "phonopy_reader" --coverage "coverage_phonopy_reader.xml"
       - uses: codecov/codecov-action@v1
         if: startsWith(matrix.os, 'ubuntu')
