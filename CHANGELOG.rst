@@ -1,5 +1,12 @@
-`Unreleased <https://github.com/pace-neutrons/euphonic_sqw_models/compare/v0.5.1...HEAD>`_
+`Unreleased <https://github.com/pace-neutrons/euphonic_sqw_models/compare/v0.5.2...HEAD>`_
 ----------
+
+`v0.5.2 <https://github.com/pace-neutrons/euphonic_sqw_models/compare/v0.5.1...v0.5.2>`_
+------
+
+- Improvements:
+
+  - Improve reliability by testing on oldest and newest supported Euphonic versions
 
 `v0.5.1 <https://github.com/pace-neutrons/euphonic_sqw_models/compare/v0.5.0...v0.5.1>`_
 ----------
