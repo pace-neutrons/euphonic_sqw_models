@@ -167,7 +167,7 @@ def run_and_test_horace_disp(material, opt_dict, filename=None):
         filename = get_expected_output_filename(material_name, opt_dict)
     expected_w, expected_sf = get_expected_w_sf(filename)
     w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict)
-    npt.assert_allclose(w, expected_w, atol=1e-2, rtol=1e-5)
+    npt.assert_allclose(w, expected_w, atol=1.5e-2, rtol=1e-5)
     npt.assert_allclose(sf, expected_sf, rtol=1e-2, atol=1e-2)
 
 

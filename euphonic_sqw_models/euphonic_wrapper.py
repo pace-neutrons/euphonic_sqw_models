@@ -84,6 +84,7 @@ class CoherentCrystal(object):
             scattering_lengths: Union[
                 str, Dict[str, Union[Quantity, float]]] = 'Sears1992',
             verbose: bool = True,
+            n_threads: Optional[int] = None,
             **calc_modes_kwargs) -> None:
         """
         Parameters
@@ -124,8 +125,10 @@ class CoherentCrystal(object):
             string denoting a database (internal or from a file)
         verbose
             Whether to print information on calculation progress
+        n_threads
+            The number of threads to use in the interpolation
         **calc_modes_kwargs
-            Any other keyword arguments (e.g asr, n_threads) will be
+            Any other keyword arguments (e.g asr, use_c) will be
             passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes.
             See the available arguments with
             help(euphonic.ForceConstants.calculate_qpoint_phonon_modes)
@@ -141,6 +144,10 @@ class CoherentCrystal(object):
         self.lim = lim
         self.scattering_lengths = scattering_lengths
         self.verbose = verbose
+        # Explicitly have n_threads as an argument so we can use typing
+        # to automatically convert to int when called from MATLAB
+        if n_threads is not None:
+            calc_modes_kwargs['n_threads'] = n_threads
         self.calc_modes_kwargs = calc_modes_kwargs
 
     def _calculate_sf(self, qpts: np.ndarray

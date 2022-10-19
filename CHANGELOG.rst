@@ -1,6 +1,12 @@
 `Unreleased <https://github.com/pace-neutrons/euphonic_sqw_models/compare/v0.5.2...HEAD>`_
 ----------
 
+- Changes:
+
+  - ``n_threads`` is now explicitly named in the ``CoherentCrystal`` constructor arguments
+    rather than being part of ``**kwargs``
+
+
 `v0.5.2 <https://github.com/pace-neutrons/euphonic_sqw_models/compare/v0.5.1...v0.5.2>`_
 ------
 
