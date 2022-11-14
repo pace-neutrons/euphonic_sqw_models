@@ -1,3 +1,4 @@
 euphonic>=0.6.0
 pytest
+pytest-mock
 coverage
