@@ -51,9 +51,12 @@ class CoherentCrystal(object):
     conversion_mat : (3, 3) float ndarray or None (default: None)
         This matrix is applied to the input (hkl) q-point values before
         the phonon calculation
-    chunk : float (default: 5000)
-        If non-zero will chunk the phonon calculation into blocks of
-        <chunk> q-points
+    chunk : int (default: None)
+        Will chunk the phonon calculation into blocks of
+        <chunk> q-points. If not provided, an optimum chunk
+        size will be calculated based on available memory. If
+        a chunk size of zero is provided, the calculation will
+        not be chunked.
     lim : float (default: infinity)
         A cut-off for the calculated structure factor where values
         above `lim` are set equal to it
@@ -79,7 +82,7 @@ class CoherentCrystal(object):
             bose: bool = True,
             negative_e: bool = False,
             conversion_mat: Optional[np.ndarray] = None,
-            chunk: int = 5000,
+            chunk: int = None,
             lim: float = np.inf,
             scattering_lengths: Union[
                 str, Dict[str, Union[Quantity, float]]] = 'Sears1992',
@@ -112,9 +115,12 @@ class CoherentCrystal(object):
         conversion_mat
             Shape (3, 3) float ndarray. This matrix is applied to the
             input (hkl) q-point values before the phonon calculation
-        chunk
-            If non-zero will chunk the phonon calculation into blocks of
-            <chunk> q-points
+        chunk : int (default: None)
+            Will chunk the phonon calculation into blocks of
+            <chunk> q-points. If not provided, an optimum chunk
+            size will be calculated based on available memory. If
+            a chunk size of zero is provided, the calculation will
+            not be chunked.
         lim
             A cut-off for the calculated structure factor where values
             above `lim` are set equal to it
@@ -140,6 +146,9 @@ class CoherentCrystal(object):
         self.bose = bose
         self.negative_e = negative_e
         self.conversion_mat = conversion_mat
+        if chunk is None:
+            chunk = self.get_optimum_chunk_size(
+                force_constants.crystal.n_atoms)
         self.chunk = chunk
         self.lim = lim
         self.scattering_lengths = scattering_lengths
@@ -261,6 +270,22 @@ class CoherentCrystal(object):
         dw_phonons = self._calculate_phonon_modes(dw_qpts)
         self.debye_waller = dw_phonons.calculate_debye_waller(
             self.temperature)
+
+    @staticmethod
+    def get_optimum_chunk_size(n_atoms: int):
+        try:
+            import psutil
+        except ModuleNotFoundError:
+            warnings.warn(
+                'Cannot import psutil to automatically estimate '
+                'calculation chunk size. Setting chunk size to 5000. '
+                'Try installing psutil:\n '
+                'python -m pip install psutil')
+            return 5000
+        mem = psutil.virtual_memory().available
+        evec_bytes_per_qpt = 16*(3*n_atoms)**2
+        chunk = int(mem/(2*evec_bytes_per_qpt))
+        return chunk
 
     @property
     def force_constants(self) -> ForceConstants:

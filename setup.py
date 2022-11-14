@@ -22,4 +22,5 @@ setup(name='euphonic_sqw_models',
       url='https://github.com/pace-neutrons/euphonic_sqw_models',
       packages=['euphonic_sqw_models'],
       install_requires=['euphonic>=' + get_euphonic_version()],
+      extras_require={'psutil': ['psutil>=0.6.0']}
      )

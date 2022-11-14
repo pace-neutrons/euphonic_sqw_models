@@ -366,3 +366,32 @@ def test_invalid_kwargs_raises_value_error(kwarg):
     with pytest.raises(ValueError):
         euphonic_sqw_models.CoherentCrystal(fc, **kwarg)
 
+def test_optimum_chunk():
+    quartz_fc = euphonic.ForceConstants.from_castep(quartz[2]['filename'])
+    quartz_coh = euphonic_sqw_models.CoherentCrystal(quartz_fc)
+
+    nacl_fc = euphonic.ForceConstants.from_json_file(nacl_json[2]['filename'])
+    nacl_coh = euphonic_sqw_models.CoherentCrystal(nacl_fc)
+
+    assert quartz_coh.chunk is not None
+    assert nacl_coh.chunk is not None
+    # Check fewer atoms = larger chunk size
+    assert nacl_coh.chunk > quartz_coh.chunk
+
+@pytest.fixture
+def mocked_psutil(mocker):
+    # Mock import of psutil to raise ModuleNotFound error
+    import builtins
+    real_import = builtins.__import__
+
+    def mocked_import(name, *args, **kwargs):
+        if name == 'psutil':
+            raise ModuleNotFoundError
+        return real_import(name, *args, **kwargs)
+    mocker.patch('builtins.__import__', side_effect=mocked_import)
+
+def test_optimum_chunk_without_psutil_warns_sets_chunk_to_5000(mocked_psutil):
+    quartz_fc = euphonic.ForceConstants.from_castep(quartz[2]['filename'])
+    with pytest.warns(UserWarning):
+        quartz_coh = euphonic_sqw_models.CoherentCrystal(quartz_fc)
+    assert quartz_coh.chunk == 5000
