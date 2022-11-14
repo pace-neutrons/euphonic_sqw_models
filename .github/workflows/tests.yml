@@ -32,7 +32,12 @@ jobs:
         shell: bash -l {0}
         run: |
           python apply_requirements.py ${{ matrix.euphonic_version }}
-          python run_tests.py -m "not phonopy_reader" --coverage "coverage.xml"
+          python run_tests.py -m "not (phonopy_reader or psutil)" --coverage "coverage.xml"
+      - name: Install psutil extra and run tests
+        shell: bash -l {0}
+        run: |
+          python -m pip install psutil
+          python run_tests.py -m "psutil" --coverage "coverage_psutil.xml"
       - name: Install Euphonic with phonopy_reader extra and run tests
         shell: bash -l {0}
         run: |

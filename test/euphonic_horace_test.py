@@ -366,6 +366,7 @@ def test_invalid_kwargs_raises_value_error(kwarg):
     with pytest.raises(ValueError):
         euphonic_sqw_models.CoherentCrystal(fc, **kwarg)
 
+@pytest.mark.psutil
 def test_optimum_chunk():
     quartz_fc = euphonic.ForceConstants.from_castep(quartz[2]['filename'])
     quartz_coh = euphonic_sqw_models.CoherentCrystal(quartz_fc)
