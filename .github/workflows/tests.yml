@@ -20,7 +20,7 @@ jobs:
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up Python
         uses: conda-incubator/setup-miniconda@v2
         with:
@@ -38,7 +38,7 @@ jobs:
         run: |
           python apply_requirements.py --extras phonopy_reader ${{ matrix.euphonic_version }}
           python run_tests.py -m "phonopy_reader" --coverage "coverage_phonopy_reader.xml"
-      - uses: codecov/codecov-action@v1
+      - uses: codecov/codecov-action@v3
         if: startsWith(matrix.os, 'ubuntu')
         with:
           files: |
