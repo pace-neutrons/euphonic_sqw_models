@@ -284,6 +284,7 @@ class CoherentCrystal(object):
             return 5000
         mem = psutil.virtual_memory().available
         evec_bytes_per_qpt = 16*(3*n_atoms)**2
+        # Divide chunk by 10 for a conservative estimate
         chunk = int(mem/(10*evec_bytes_per_qpt))
         return chunk
 
