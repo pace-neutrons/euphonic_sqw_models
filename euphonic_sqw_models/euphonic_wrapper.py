@@ -277,14 +277,14 @@ class CoherentCrystal(object):
             import psutil
         except ModuleNotFoundError:
             warnings.warn(
-                'Cannot import psutil to automatically estimate '
+                '\nCannot import psutil to automatically estimate '
                 'calculation chunk size. Setting chunk size to 5000. '
                 'Try installing psutil:\n '
                 'python -m pip install psutil')
             return 5000
         mem = psutil.virtual_memory().available
         evec_bytes_per_qpt = 16*(3*n_atoms)**2
-        chunk = int(mem/(2*evec_bytes_per_qpt))
+        chunk = int(mem/(10*evec_bytes_per_qpt))
         return chunk
 
     @property
