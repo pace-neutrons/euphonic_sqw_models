@@ -5,13 +5,12 @@
 
   - ``n_threads`` is now explicitly named in the ``CoherentCrystal`` constructor arguments
     rather than being part of ``**kwargs``
-  - ``psutil`` has been added as an optional dependency
+  - ``psutil`` has been added as a dependency
 
 - Improvements:
 
-  - If ``psutil`` is installed and ``chunk`` hasn't been provided, a recommended chunk
-    size will be calculated and set. If ``psutil`` is not installed, the default
-    chunk size is still ``5000``.
+  - If ``chunk`` hasn't been provided to ``CoherentCrystal``, a recommended chunk
+    size will now be calculated and set based on available memory.
 
 `v0.5.2 <https://github.com/pace-neutrons/euphonic_sqw_models/compare/v0.5.1...v0.5.2>`_
 ------
