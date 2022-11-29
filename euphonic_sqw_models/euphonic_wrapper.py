@@ -1,6 +1,7 @@
 import warnings
 from typing import Optional, Dict, Union, Tuple
 
+import psutil
 import numpy as np
 
 from euphonic import (ForceConstants, QpointPhononModes, DebyeWaller,
@@ -273,15 +274,6 @@ class CoherentCrystal(object):
 
     @staticmethod
     def get_optimum_chunk_size(n_atoms: int):
-        try:
-            import psutil
-        except ModuleNotFoundError:
-            warnings.warn(
-                '\nCannot import psutil to automatically estimate '
-                'calculation chunk size. Setting chunk size to 5000. '
-                'Try installing psutil:\n '
-                'python -m pip install psutil')
-            return 5000
         mem = psutil.virtual_memory().available
         evec_bytes_per_qpt = 16*(3*n_atoms)**2
         # Divide chunk by 10 for a conservative estimate
