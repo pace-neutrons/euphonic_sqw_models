@@ -1,5 +1,2 @@
 euphonic>=0.6.0
-psutil
-pytest
-pytest-mock
-coverage
+psutil>=5.4.6
