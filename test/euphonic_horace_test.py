@@ -1,4 +1,5 @@
 import os
+from types import SimpleNamespace
 
 import pytest
 import numpy as np
@@ -366,3 +367,29 @@ def test_invalid_kwargs_raises_value_error(kwarg):
     with pytest.raises(ValueError):
         euphonic_sqw_models.CoherentCrystal(fc, **kwarg)
 
+class TestChunk:
+
+    def test_optimum_chunk_larger_with_smaller_cell(self):
+        quartz_fc = euphonic.ForceConstants.from_castep(quartz[2]['filename'])
+        quartz_coh = euphonic_sqw_models.CoherentCrystal(quartz_fc)
+
+        nacl_fc = euphonic.ForceConstants.from_json_file(nacl_json[2]['filename'])
+        nacl_coh = euphonic_sqw_models.CoherentCrystal(nacl_fc)
+
+        assert quartz_coh.chunk is not None
+        assert nacl_coh.chunk is not None
+        # Check fewer atoms = larger chunk size
+        assert nacl_coh.chunk > quartz_coh.chunk
+
+    def test_optimum_chunk_mocked_psutil_virtualmemory(self, mocker):
+        available_memory = 1e5
+        psutil_virtual_memory = SimpleNamespace()
+        psutil_virtual_memory.available = available_memory
+        mocker.patch('psutil.virtual_memory',
+                     return_value=psutil_virtual_memory)
+
+        quartz_fc = euphonic.ForceConstants.from_castep(quartz[2]['filename'])
+        quartz_coh = euphonic_sqw_models.CoherentCrystal(quartz_fc)
+        n_atoms = 9
+        evec_bytes_per_qpt = 16*(3*n_atoms)**2
+        assert quartz_coh.chunk == int(available_memory/(10*evec_bytes_per_qpt))

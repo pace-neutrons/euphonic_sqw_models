@@ -5,7 +5,12 @@
 
   - ``n_threads`` is now explicitly named in the ``CoherentCrystal`` constructor arguments
     rather than being part of ``**kwargs``
+  - ``psutil`` has been added as a dependency
 
+- Improvements:
+
+  - If ``chunk`` hasn't been provided to ``CoherentCrystal``, a recommended chunk
+    size will now be calculated and set based on available memory.
 
 `v0.5.2 <https://github.com/pace-neutrons/euphonic_sqw_models/compare/v0.5.1...v0.5.2>`_
 ------
