@@ -1,5 +1,8 @@
-`Unreleased <https://github.com/pace-neutrons/euphonic_sqw_models/compare/v0.5.2...HEAD>`_
+`Unreleased <https://github.com/pace-neutrons/euphonic_sqw_models/compare/v1.0.0...HEAD>`_
 ----------
+
+`v1.0.0 <https://github.com/pace-neutrons/euphonic_sqw_models/compare/v0.5.2...v1.0.0>`_
+------
 
 - Changes:
 
