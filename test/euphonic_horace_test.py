@@ -114,7 +114,8 @@ def sum_degenerate_modes(w, sf):
 
 
 def calculate_w_sf(material_opts, material_constructor, opt_dict,
-                   sum_sf=True, hdisp_args=(), hdisp_kwargs={}):
+                   sum_sf=True, hdisp_args=(), hdisp_kwargs={},
+                   idx_ignore=[]):
     fc = material_constructor(**material_opts)
     opt_dict['asr'] = 'reciprocal'
     coherent_sqw = euphonic_sqw_models.CoherentCrystal(fc, **opt_dict)
@@ -122,17 +123,11 @@ def calculate_w_sf(material_opts, material_constructor, opt_dict,
         qpts[:,0], qpts[:,1], qpts[:,2], *hdisp_args, **hdisp_kwargs)
     w = np.array(w).T
     sf = np.array(sf).T
-    # Ignore gamma-point frequencies by setting to zero - their
-    # values are unstable
-    gamma_points = (np.sum(np.absolute(qpts - np.rint(qpts)), axis=-1)
-                    < 1e-10)
-    w[gamma_points, :3] = 0.
-    # Ignore acoustic structure factors by setting to zero - their
-    # values can be unstable at small frequencies
-    sf[:,:3] = 0.
-    if 'negative_e' in opt_dict and opt_dict['negative_e']:
-        n = int(np.shape(sf)[1] / 2)
-        sf[:,n:(n+3)] = 0
+    # Ignore frequencies/structure factors at points with low expected
+    # frequencies. These are likely to be acoustic modes at gamma
+    # points and so unstable
+    w[idx_ignore] = 0.
+    sf[idx_ignore] = 0.
     if sum_sf:
         sf = sum_degenerate_modes(w, sf)
     return w, sf
@@ -148,26 +143,26 @@ def get_expected_w_sf(fname, sum_sf=True):
     # Was written from Python - use as is
         expected_w = ref_dat['expected_w']
         expected_sf = ref_dat['expected_sf']
-    # Set gamma-point acoustic frequencies to zero
-    gamma_points = (np.sum(np.absolute(qpts - np.rint(qpts)), axis=-1)
-                    < 1e-10)
-    expected_w[gamma_points, :3] = 0.
-    # Set acoustic structure factors to zero
-    expected_sf[:,:3] = 0
-    if 'negative_e' in fname:
-        n = int(np.shape(expected_sf)[1] / 2)
-        expected_sf[:,n:(n+3)] = 0
+    # Ignore frequencies/structure factors at points with low expected
+    # frequencies. These are likely to be acoustic modes at gamma
+    # points and so unstable
+    idx_ignore = np.where(np.absolute(expected_w) < 1)
+    expected_w[idx_ignore] = 0.
+    expected_sf[idx_ignore] = 0.
+    import warnings
+    warnings.warn(f'Len idx_ignore: {len(idx_ignore[0])}')
     if sum_sf:
         expected_sf = sum_degenerate_modes(expected_w, expected_sf)
-    return expected_w, expected_sf
+    return expected_w, expected_sf, idx_ignore
 
 
 def run_and_test_horace_disp(material, opt_dict, filename=None):
     material_name, material_constructor, material_opts = material
     if filename is None:
         filename = get_expected_output_filename(material_name, opt_dict)
-    expected_w, expected_sf = get_expected_w_sf(filename)
-    w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict)
+    expected_w, expected_sf, idx_ignore = get_expected_w_sf(filename)
+    w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict,
+                           idx_ignore=idx_ignore)
     npt.assert_allclose(w, expected_w, atol=1.5e-2, rtol=1e-5)
     npt.assert_allclose(sf, expected_sf, rtol=1e-2, atol=1e-2)
 
@@ -261,11 +256,12 @@ def test_euphonic_sqw_models_temperatures_phonopy_reader(
 def test_euphonic_sqw_models_pars(
         material, opt_dict, iscale, freqscale, args, kwargs):
     material_name, material_constructor, material_opts = material
-    expected_w, expected_sf = get_expected_w_sf(
+    expected_w, expected_sf, idx_ignore = get_expected_w_sf(
         get_expected_output_filename(
             material_name, opt_dict), sum_sf=False)
     w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict,
-                           sum_sf=False, hdisp_args=args, hdisp_kwargs=kwargs)
+                           sum_sf=False, hdisp_args=args, hdisp_kwargs=kwargs,
+                           idx_ignore=idx_ignore)
     # Sum sfs using the same frequencies - if expected_w and the scaled
     # w are used, this could result in expected_sf and sf
     # being summed differently
@@ -288,6 +284,10 @@ def test_euphonic_sqw_models_pars(
 def test_old_behaviour_single_parameter_sets_intensity_scale(opt_dict):
     iscale = 1.5
     material_name, material_constructor, material_opts = quartz
+    expected_w, expected_sf, idx_ignore = get_expected_w_sf(
+        get_expected_output_filename(
+            material_name, opt_dict), sum_sf=False)
+
     fc = material_constructor(**material_opts)
     opt_dict['asr'] = 'reciprocal'
     opt_dict['scattering_lengths'] = scattering_lengths
@@ -299,20 +299,12 @@ def test_old_behaviour_single_parameter_sets_intensity_scale(opt_dict):
         qpts[:,0], qpts[:,1], qpts[:,2], [iscale])
     w = np.array(w).T
     sf = np.array(sf).T
-    # Ignore gamma-point frequencies by setting to zero - their
-    # values are unstable
-    gamma_points = (np.sum(np.absolute(qpts - np.rint(qpts)), axis=-1)
-                    < 1e-10)
-    w[gamma_points, :3] = 0.
-    # Ignore acoustic structure factors by setting to zero - their
-    # values can be unstable at small frequencies
-    n = int(np.shape(sf)[1] / 2)
-    sf[:,:3] = 0.
-    sf[:,n:(n+3)] = 0
+    # Ignore frequencies/structure factors at points with low expected
+    # frequencies. These are likely to be acoustic modes at gamma
+    # points and so unstable
+    w[idx_ignore] = 0.
+    sf[idx_ignore] = 0.
 
-    expected_w, expected_sf = get_expected_w_sf(
-        get_expected_output_filename(
-            material_name, opt_dict), sum_sf=False)
     # Sum sfs using the same frequencies - if expected_w and the scaled
     # w are used, this could result in expected_sf and sf
     # being summed differently
@@ -338,11 +330,12 @@ def test_sf_unit_change(material, opt_dict):
     material_name, material_constructor, material_opts = material
     fname = get_expected_output_filename(
             material_name, opt_dict)
-    expected_w, expected_sf = get_expected_w_sf(os.path.join(
+    expected_w, expected_sf, idx_ignore = get_expected_w_sf(os.path.join(
         os.path.dirname(fname),
         f'old_units_{os.path.basename(fname)}'))
 
-    w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict)
+    w, sf = calculate_w_sf(material_opts, material_constructor, opt_dict,
+                           idx_ignore=idx_ignore)
 
     npt.assert_allclose(w, expected_w, atol=1.5e-2, rtol=1e-5)
 
