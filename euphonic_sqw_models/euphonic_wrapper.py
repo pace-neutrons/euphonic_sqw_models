@@ -61,7 +61,7 @@ class CoherentCrystal(object):
         database (internal or from a file)
     verbose : bool (default: True)
         Whether to print information on calculation progress
-    **calc_modes_kwargs
+    calc_modes_kwargs
         Any other keyword arguments (e.g asr, n_threads) will be
         passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes.
         See the available arguments with
@@ -81,7 +81,6 @@ class CoherentCrystal(object):
             scattering_lengths: Union[
                 str, Dict[str, Union[Quantity, float]]] = 'Sears1992',
             verbose: bool = True,
-            n_threads: Optional[int] = None,
             **calc_modes_kwargs) -> None:
         """
         Parameters
@@ -90,7 +89,6 @@ class CoherentCrystal(object):
             An object that has a calculate_qpoint_phonon_modes function
             that produces a euphonic.QpointPhononModes object.
             Typically ForceConstants or BrilleInterpolator.
-            The force constants
         debye_waller_grid
             The Monkhorst-Pack q-point grid size to use for the
             Debye-Waller calculation. If None the Debye-Waller
@@ -128,13 +126,10 @@ class CoherentCrystal(object):
             string denoting a database (internal or from a file)
         verbose
             Whether to print information on calculation progress
-        n_threads
-            The number of threads to use in the interpolation
         **calc_modes_kwargs
             Any other keyword arguments (e.g asr, use_c) will be
-            passed to euphonic.ForceConstants.calculate_qpoint_phonon_modes.
-            See the available arguments with
-            help(euphonic.ForceConstants.calculate_qpoint_phonon_modes)
+            passed to the calculate_qpoint_phonon_modes method of
+            the input ForceConstants or BrilleInterpolator object.
         """
         self.force_constants = force_constants
         self.debye_waller_grid = debye_waller_grid
@@ -150,10 +145,13 @@ class CoherentCrystal(object):
         self.lim = lim
         self.scattering_lengths = scattering_lengths
         self.verbose = verbose
-        # Explicitly have n_threads as an argument so we can use typing
-        # to automatically convert to int when called from MATLAB
-        if n_threads is not None:
-            calc_modes_kwargs['n_threads'] = n_threads
+        # Explicitly convert to integers so users calling from MATLAB
+        # don't have to
+        int_kwargs = ['threads', 'n_threads']
+        for int_kwarg in int_kwargs:
+            if int_kwarg in calc_modes_kwargs:
+                calc_modes_kwargs[int_kwarg] = \
+                    int(calc_modes_kwargs[int_kwarg])
         self.calc_modes_kwargs = calc_modes_kwargs
 
     def _calculate_sf(self, qpts: np.ndarray
@@ -279,11 +277,12 @@ class CoherentCrystal(object):
         return chunk
 
     @property
-    def force_constants(self) -> ForceConstants:
+    def force_constants(self) -> Union[ForceConstants, 'BrilleInterpolator']:
         return self._force_constants
 
     @force_constants.setter
-    def force_constants(self, val: ForceConstants) -> None:
+    def force_constants(self, val: Union[ForceConstants, 'BrilleInterpolator']
+                        ) -> None:
         if hasattr(val, 'calculate_qpoint_phonon_modes'):
             self._force_constants = val
         else:
