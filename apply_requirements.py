@@ -15,8 +15,10 @@ from argparse import ArgumentParser
 pipcmd = [sys.executable, '-m', 'pip', 'install']
 
 def clone_euphonic(branch='master'):
-    subprocess.check_call(
-        ['git', 'clone', 'https://github.com/pace-neutrons/Euphonic'])
+    # Only clone the first time
+    if not os.path.exists('Euphonic'):
+        subprocess.check_call(
+            ['git', 'clone', 'https://github.com/pace-neutrons/Euphonic'])
     subprocess.check_call(['git', 'checkout', branch], cwd='Euphonic')
 
 
