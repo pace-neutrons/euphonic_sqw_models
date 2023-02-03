@@ -133,7 +133,7 @@ def calculate_w_sf(material_opts, material_constructor, opt_dict,
     return w, sf
 
 
-def get_expected_w_sf(fname, sum_sf=True):
+def get_expected_w_sf(fname, sum_sf=True, lim=1):
     ref_dat = scipy.io.loadmat(fname)
     # Was written from Matlab - convert first
     if ref_dat['expected_w'].dtype == object:
@@ -146,7 +146,7 @@ def get_expected_w_sf(fname, sum_sf=True):
     # Ignore frequencies/structure factors at points with low expected
     # frequencies. These are likely to be acoustic modes at gamma
     # points and so unstable
-    idx_ignore = np.where(np.absolute(expected_w) < 1)
+    idx_ignore = np.where(np.absolute(expected_w) < lim)
     expected_w[idx_ignore] = 0.
     expected_sf[idx_ignore] = 0.
     import warnings
@@ -386,3 +386,32 @@ class TestChunk:
         n_atoms = 9
         evec_bytes_per_qpt = 16*(3*n_atoms)**2
         assert quartz_coh.chunk == int(available_memory/(10*evec_bytes_per_qpt))
+
+@pytest.mark.brille
+class TestBrille:
+
+    def test_brille_euphonic_similar_results(self):
+        from euphonic.brille import BrilleInterpolator
+
+        opt_dict = {'temperature': 300}
+        fname = get_expected_output_filename('quartz', opt_dict)
+        # Ignore vals below 25 meV - hard to test
+        expected_w, expected_sf, idx_ignore = get_expected_w_sf(
+            fname, lim=25)
+
+        fc = euphonic.ForceConstants.from_castep(quartz[2]['filename'])
+
+        bri = BrilleInterpolator.from_force_constants(
+            fc, grid_npts=1000, interpolation_kwargs={'asr': 'reciprocal'})
+        coherent_sqw = euphonic_sqw_models.CoherentCrystal(
+            bri, useparallel=True, **opt_dict)
+        w, sf = coherent_sqw.horace_disp(qpts[:,0], qpts[:,1], qpts[:,2])
+        w = np.array(w).T
+        sf = np.array(sf).T
+        w[idx_ignore] = 0.
+        sf[idx_ignore] = 0.
+
+        npt.assert_allclose(w, expected_w, atol=3, rtol=0.01)
+        sf = sum_degenerate_modes(w, sf)
+        # Don't test last q-point - unstable
+        npt.assert_allclose(sf[:-1], expected_sf[:-1], rtol=0.01, atol=0.01)

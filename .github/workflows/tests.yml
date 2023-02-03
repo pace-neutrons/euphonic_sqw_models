@@ -34,12 +34,17 @@ jobs:
         shell: bash -l {0}
         run: |
           python apply_requirements.py ${{ matrix.euphonic_version }}
-          python run_tests.py -m "not phonopy_reader" --coverage "coverage.xml"
+          python run_tests.py -m "not (phonopy_reader or brille)" --coverage "coverage.xml"
       - name: Install Euphonic with phonopy_reader extra and run tests
         shell: bash -l {0}
         run: |
           python apply_requirements.py --extras phonopy_reader ${{ matrix.euphonic_version }}
           python run_tests.py -m "phonopy_reader" --coverage "coverage_phonopy_reader.xml"
+      - name: Install Euphonic with Brille extra and run tests
+        shell: bash -l {0}
+        run: |
+          python apply_requirements.py --extras brille ${{ matrix.euphonic_version }}
+          python run_tests.py -m "brille" --coverage "coverage_brille.xml"
       - uses: codecov/codecov-action@v3
         if: startsWith(matrix.os, 'ubuntu')
         with:
