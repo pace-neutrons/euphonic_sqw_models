@@ -11,12 +11,12 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
         python_version: ['3.10']
-        euphonic_version: ['']
+        euphonic_version: ['--branch 95_brille_integration']
         # Test lowest supported Python/Euphonic versions
         include:
           - os: ubuntu-latest
             python_version: '3.7'
-            euphonic_version: '--version 0.6.0'
+            euphonic_version: '--branch 95_brille_integration'
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
