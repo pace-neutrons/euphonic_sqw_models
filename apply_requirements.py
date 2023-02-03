@@ -20,7 +20,7 @@ def clone_euphonic(branch='master'):
     subprocess.check_call(['git', 'checkout', branch], cwd='Euphonic')
 
 
-def install_requirements(requirements_file=None, extras=[],
+def install_requirements(requirements_file=None, extras=None,
                          branch=None, version=None):
     if branch is not None and version is not None:
         raise ValueError('Only one of branch or version should be provided')
@@ -34,18 +34,20 @@ def install_requirements(requirements_file=None, extras=[],
     if '>=' not in euphonic and branch is None:
         # This means we're between versions, or a branch has been provided, clone Euphonic
         branch = 'master'
-
+    if extras is None:
+        ex_str = ''
+    else:
+        ex_str = f'[{",".join(extras)}]'
     if branch is not None:
         clone_euphonic(branch=branch)
-        subprocess.check_call(pipcmd + [f'.[{",".join(extras)}]'],
-                              cwd='Euphonic')
+        subprocess.check_call(pipcmd + [f'.{ex_str}'], cwd='Euphonic')
     else:
         if version is None:
             version_str = ''
         else:
             version_str = f'=={version}'
         subprocess.check_call(
-            pipcmd + ['--upgrade'] + [f'euphonic[{",".join(extras)}]{version_str}'])
+            pipcmd + ['--upgrade'] + [f'euphonic{ex_str}{version_str}'])
     subprocess.check_call(pipcmd + packages)
 
 
@@ -60,7 +62,7 @@ if __name__ == "__main__":
         '--branch', default=None,
         help='The Euphonic branch to clone, default master')
     parser.add_argument(
-        '--extras', nargs='*', default=[],
+        '--extras', nargs='*', default=None,
         help='The Euphonic "extras" to install e.g. phonopy_reader')
     args = parser.parse_args()
 
