@@ -6,6 +6,10 @@
    - ``CoherentCrystal`` can now also be created with a
      ``euphonic.brille.BrillerInterpolator`` object
 
+- Dependency changes:
+
+  - Euphonic version dependency increased from >= 0.6.0 to >= 1.2.0
+
 `v1.0.0 <https://github.com/pace-neutrons/euphonic_sqw_models/compare/v0.5.2...v1.0.0>`_
 ------
 
