@@ -148,10 +148,9 @@ class CoherentCrystal(object):
         # Explicitly convert to integers so users calling from MATLAB
         # don't have to
         int_kwargs = ['threads', 'n_threads']
-        for int_kwarg in int_kwargs:
-            if int_kwarg in calc_modes_kwargs:
-                calc_modes_kwargs[int_kwarg] = \
-                    int(calc_modes_kwargs[int_kwarg])
+        for ikw in int_kwargs:
+            if ikw in calc_modes_kwargs:
+                calc_modes_kwargs[ikw] = int(calc_modes_kwargs[ikw])
         self.calc_modes_kwargs = calc_modes_kwargs
 
     def _calculate_sf(self, qpts: np.ndarray
