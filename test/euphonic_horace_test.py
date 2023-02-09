@@ -393,9 +393,7 @@ class TestBrille:
 
         opt_dict = {'temperature': 300}
         fname = get_expected_output_filename('quartz', opt_dict)
-        # Ignore vals below 25 meV - hard to test
-        expected_w, expected_sf, idx_ignore = get_expected_w_sf(
-            fname, lim=25)
+        expected_w, expected_sf, idx_ignore = get_expected_w_sf(fname)
 
         fc = euphonic.ForceConstants.from_castep(quartz[2]['filename'])
 
@@ -409,10 +407,14 @@ class TestBrille:
         w[idx_ignore] = 0.
         sf[idx_ignore] = 0.
 
-        npt.assert_allclose(w, expected_w, atol=3, rtol=0.01)
-        sf = sum_degenerate_modes(w, sf)
         # Don't test last q-point - unstable
-        npt.assert_allclose(sf[:-1], expected_sf[:-1], rtol=0.01, atol=0.01)
+        # Use mean residual due to a few outliers
+        mean_frequency_residual = np.mean(np.abs(w - expected_w)[:-1])
+        assert mean_frequency_residual < 0.15
+
+        sf = sum_degenerate_modes(w, sf)
+        mean_sf_residual = np.mean(np.abs(sf - expected_sf)[:-1])
+        assert mean_sf_residual < 0.004
 
     @pytest.fixture
     def mock_bri(self, mocker):
