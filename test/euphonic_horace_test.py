@@ -6,7 +6,7 @@ import numpy as np
 import numpy.testing as npt
 import scipy.io
 import euphonic
-from euphonic import ureg
+from euphonic import ureg, QpointPhononModes
 
 import euphonic_sqw_models
 
@@ -133,7 +133,7 @@ def calculate_w_sf(material_opts, material_constructor, opt_dict,
     return w, sf
 
 
-def get_expected_w_sf(fname, sum_sf=True):
+def get_expected_w_sf(fname, sum_sf=True, lim=1):
     ref_dat = scipy.io.loadmat(fname)
     # Was written from Matlab - convert first
     if ref_dat['expected_w'].dtype == object:
@@ -146,11 +146,9 @@ def get_expected_w_sf(fname, sum_sf=True):
     # Ignore frequencies/structure factors at points with low expected
     # frequencies. These are likely to be acoustic modes at gamma
     # points and so unstable
-    idx_ignore = np.where(np.absolute(expected_w) < 1)
+    idx_ignore = np.where(np.absolute(expected_w) < lim)
     expected_w[idx_ignore] = 0.
     expected_sf[idx_ignore] = 0.
-    import warnings
-    warnings.warn(f'Len idx_ignore: {len(idx_ignore[0])}')
     if sum_sf:
         expected_sf = sum_degenerate_modes(expected_w, expected_sf)
     return expected_w, expected_sf, idx_ignore
@@ -386,3 +384,61 @@ class TestChunk:
         n_atoms = 9
         evec_bytes_per_qpt = 16*(3*n_atoms)**2
         assert quartz_coh.chunk == int(available_memory/(10*evec_bytes_per_qpt))
+
+@pytest.mark.brille
+class TestBrille:
+
+    def test_brille_euphonic_similar_results(self):
+        from euphonic.brille import BrilleInterpolator
+
+        opt_dict = {'temperature': 300}
+        fname = get_expected_output_filename('quartz', opt_dict)
+        expected_w, expected_sf, idx_ignore = get_expected_w_sf(fname)
+
+        fc = euphonic.ForceConstants.from_castep(quartz[2]['filename'])
+
+        bri = BrilleInterpolator.from_force_constants(
+            fc, grid_npts=1000, interpolation_kwargs={'asr': 'reciprocal'})
+        coherent_sqw = euphonic_sqw_models.CoherentCrystal(
+            bri, useparallel=True, **opt_dict)
+        w, sf = coherent_sqw.horace_disp(qpts[:,0], qpts[:,1], qpts[:,2])
+        w = np.array(w).T
+        sf = np.array(sf).T
+        w[idx_ignore] = 0.
+        sf[idx_ignore] = 0.
+
+        # Don't test last q-point - unstable
+        # Use mean residual due to a few outliers
+        mean_frequency_residual = np.mean(np.abs(w - expected_w)[:-1])
+        assert mean_frequency_residual < 0.15
+
+        sf = sum_degenerate_modes(w, sf)
+        mean_sf_residual = np.mean(np.abs(sf - expected_sf)[:-1])
+        assert mean_sf_residual < 0.004
+
+    @pytest.fixture
+    def mock_bri(self, mocker):
+        # Mock BrilleInterpolator calculate_qpoint_frequencies and
+        # calculate_qpoint_phonon_modes so we can examine call args and
+        # check they've been passed through from CoherentCrystal
+        # constructor
+        from euphonic.brille import BrilleInterpolator
+        fc = euphonic.ForceConstants.from_castep(quartz[2]['filename'])
+        bri = BrilleInterpolator.from_force_constants(fc, grid_npts=5)
+
+        n_atoms = fc.crystal.n_atoms
+        qpts = np.ones((10, 3))
+        freqs = np.ones((10, 3*n_atoms))*ureg('meV')
+        evecs = np.ones((10, 3*n_atoms, n_atoms, 3))
+        qpm = QpointPhononModes(fc.crystal, qpts, freqs, evecs)
+        bri.calculate_qpoint_phonon_modes = mocker.MagicMock(return_value=qpm)
+        return bri
+
+    def test_calc_modes_kwargs_passed(self, mock_bri):
+        kwargs = {'useparallel': True, 'threads': 2}
+        coherent_sqw = euphonic_sqw_models.CoherentCrystal(
+            mock_bri, **kwargs)
+        coherent_sqw.horace_disp(
+            qpts[:, 0], qpts[:, 1], qpts[:, 2])
+        called_kwargs = mock_bri.calculate_qpoint_phonon_modes.call_args[1]
+        assert called_kwargs == kwargs
