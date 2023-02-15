@@ -4,7 +4,7 @@
  - New Features:
 
    - ``CoherentCrystal`` can now also be created with a
-     ``euphonic.brille.BrillerInterpolator`` object
+     ``euphonic.brille.BrilleInterpolator`` object
 
 - Dependency changes:
 
